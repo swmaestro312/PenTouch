@@ -35,5 +35,10 @@ namespace PenTouch
         {
 			
         }
+
+		private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+
+		}
     }
 }
