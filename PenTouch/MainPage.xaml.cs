@@ -33,6 +33,7 @@ namespace PenTouch
         /// 속성은 일반적으로 페이지를 구성하는 데 사용됩니다.</param>
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
+			
         }
     }
 }
