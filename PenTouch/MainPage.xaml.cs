@@ -16,29 +16,25 @@ using Windows.UI.Xaml.Navigation;
 
 namespace PenTouch
 {
-    /// <summary>
-    /// 자체에서 사용하거나 프레임 내에서 탐색할 수 있는 빈 페이지입니다.
-    /// </summary>
-    public sealed partial class MainPage : Page
-    {
-        public MainPage()
-        {
-            this.InitializeComponent();
-        }
-
-        /// <summary>
-        /// 이 페이지가 프레임에 표시되려고 할 때 호출됩니다.
-        /// </summary>
-        /// <param name="e">페이지에 도달한 방법을 설명하는 이벤트 데이터입니다. Parameter
-        /// 속성은 일반적으로 페이지를 구성하는 데 사용됩니다.</param>
-        protected override void OnNavigatedTo(NavigationEventArgs e)
-        {
-			
-        }
-
-		private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
+	/// <summary>
+	/// 자체에서 사용하거나 프레임 내에서 탐색할 수 있는 빈 페이지입니다.
+	/// </summary>
+	public sealed partial class MainPage : Page
+	{
+		public MainPage()
 		{
-
+			this.InitializeComponent();
 		}
-    }
+
+		/// <summary>
+		/// 이 페이지가 프레임에 표시되려고 할 때 호출됩니다.
+		/// </summary>
+		/// <param name="e">페이지에 도달한 방법을 설명하는 이벤트 데이터입니다. Parameter
+		/// 속성은 일반적으로 페이지를 구성하는 데 사용됩니다.</param>
+		protected override void OnNavigatedTo(NavigationEventArgs e)
+		{
+			
+		}
+	}
 }
+ 
