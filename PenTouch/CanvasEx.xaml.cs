@@ -23,9 +23,32 @@ using Windows.UI.Xaml.Shapes;
 
 // 사용자 정의 컨트롤 항목 템플릿에 대한 설명은 http://go.microsoft.com/fwlink/?LinkId=234236에 나와 있습니다.
 
+/* Programming Note
+ * 
+ * 12 10 22
+ * 원격 디버깅 설정을 했습니다.
+ * 
+ * 12 10 23 ~ 24
+ * WPF 등에 있었던 WriteableBitmap.Render 등 비트맵으로의 출력이 삭제된 덕에 고생 좀 했습니다.
+ * 그렇다고 벡터를 화면에 직접 출력하자니 너무 느린 등의 문제가 있었습니다.
+ * 라인으로 출력하는 편이 그나마 퍼포먼스가 좋아보였지만, 선 중복 문제가..
+ * 
+ * 12 10 25
+ * 딱 하나 InkManager에 파일로 저장하는 메소드가 있었습니다.
+ * 해당 메소드에 InMemoryRandomAccessStream 객체를 넣어서 구현해보려 했지만 실패했습니다.
+ * 이것저것 찾아보던 중 MemoryRandomAccessStream 이라는 키워드를 얻었고 한 블로거가 System.IO.MemoryStream을 포팅한 클래스의 포스팅을 찾을 수 있었습니다.
+ * 해당 클래스를 이용해서 진행하면 제대로 작동합니다.
+ * 이슈가 두 가지 발생했습니다.
+ * 1. 현재는 선 겹침 문제가 해결되지 않았습니다. InkManager를 초기화해서 최대한 퍼포먼스를 좋게 만들어야 할 필요성.
+ * 2. 실제 그려진 위치와 떨어진 위치에 이미지가 나타납니다. 그려진 부분만을 클리핑해서 파일로 만들기 때문에 그런 듯.
+ * 차후 수정할 필요가 있습니다.
+ * 
+ * 
+ */
+
 namespace PenTouch
 {
-	public sealed partial class CanvasEx : Grid
+	public sealed partial class CanvasEx : Canvas
 	{
 		InkManager inkManager = new InkManager();
 		uint penID;
@@ -36,6 +59,7 @@ namespace PenTouch
 		{
 			this.InitializeComponent();
 			image.Source = bitmap;
+			image.Stretch = Stretch.None;
 		}
 
 		private void OnLoaded(object sender, RoutedEventArgs e)
@@ -104,8 +128,8 @@ namespace PenTouch
 				// Pass the pointer information to the InkManager. 
 				inkManager.ProcessPointerUp(pt);
 				
-				//LiveRenderEnd();
-				//BezierRender();
+				LiveRenderEnd();
+				BezierRender();
 			}
 			/*
 			else if (e.Pointer.PointerId == _touchID)
@@ -167,9 +191,10 @@ namespace PenTouch
 
 		private async void BezierRender()
 		{
-			var stream = new InMemoryRandomAccessStream();
-			await inkManager.SaveAsync(stream);
-			bitmap.SetSource(stream);
+			var memoryStream = new MemoryStream();
+			var randomAccessStream = new Util.MemoryRandomAccessStream(memoryStream);
+			await inkManager.SaveAsync(randomAccessStream);
+			bitmap.SetSource(randomAccessStream);
 		}
 
 		/*
