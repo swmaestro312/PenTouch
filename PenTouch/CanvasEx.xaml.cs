@@ -9,7 +9,6 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Storage;
 using Windows.Storage.Streams;
-//using Windows.Graphics.Imaging;
 
 using Windows.UI;
 using Windows.UI.Input;
@@ -20,6 +19,8 @@ using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Shapes;
+
+using Util;
 
 // 사용자 정의 컨트롤 항목 템플릿에 대한 설명은 http://go.microsoft.com/fwlink/?LinkId=234236에 나와 있습니다.
 
@@ -43,40 +44,87 @@ using Windows.UI.Xaml.Shapes;
  * 2. 실제 그려진 위치와 떨어진 위치에 이미지가 나타납니다. 그려진 부분만을 클리핑해서 파일로 만들기 때문에 그런 듯.
  * 차후 수정할 필요가 있습니다.
  * 
+ * 12 10 26
+ * 최대한 실제 그려진 위치와 일치한 곳에 벡터가 그려지도록 했습니다.
+ * Image를 Fill 형태로 그려지게 하고 InkManager의 BoundingRect를 Image에 적용했습니다.
+ * InkManager 를 남겨두는 편이 통신을 고려하면 더 좋을지도 모르겠습니다.
+ * 터치를 통해 캔버스를 움직이는 기능울 구현하였습니다.
+ * InkManager 를 남겨두니까 부하가 엄청 걸리네요.
+ * 비트맵을 합치는 방법을 사용해야 할 듯.
+ * 메모리 버퍼는 최대한 생성하지 않는 편이 나은 것 같습니다.
  * 
+ * 12 10 27
+ * Image를 여러 개 Child로 추가하는 편이 가장 퍼포먼스가 좋았습니다.
+ * 겹쳤을 때 테두리가 하얗게 되는 현상을 확인하였습니다.
+ * 
+ * 12 10 28
+ * Bezier를 렌더링 할 때 계속 겹쳐 그리고 있던 것을 발견하였습니다.
+ * 그때마다 inkManager를 초기화하니 퍼포먼스가 좋아졌습니다. 오예.
+ * 확대/축소를 구현하였습니다. 마우스/터치 모두 가능. 0.5배 ~ 2배까지
+ * Ctrl-Z를 구현했습니다.
  */
 
 namespace PenTouch
 {
-	public sealed partial class CanvasEx : Canvas
+	public sealed partial class CanvasEx : Grid
 	{
-		InkManager inkManager = new InkManager();
-		uint penID;
+		RectangleGeometry clipRect = new RectangleGeometry();
 
-		BitmapImage bitmap = new BitmapImage();
+		InkManager inkManager;
+		InkDrawingAttributes attr = new InkDrawingAttributes();
+		uint pointID;
+		Point prevPoint;
+
+		//Util.MemoryRandomAccessStream randomAccessStream;
+
+		enum PointerType
+		{
+			None, Drawing, Moving, Scaling
+		}
+		
+		PointerType type = PointerType.None;
+
+		TranslateTransform translate;
+		ScaleTransform scale;
 
 		public CanvasEx()
 		{
 			this.InitializeComponent();
-			image.Source = bitmap;
-			image.Stretch = Stretch.None;
+
+			//randomAccessStream = new Util.MemoryRandomAccessStream(new MemoryStream());
+
+			Clip = clipRect;
 		}
 
 		private void OnLoaded(object sender, RoutedEventArgs e)
 		{
-			var attr = new InkDrawingAttributes();
 			attr.IgnorePressure = false;
 			attr.PenTip = PenTipShape.Circle;
 			attr.Size = new Size(4, 4);
-			attr.Color = Colors.Black;
-			attr.FitToCurve = true;
+			attr.Color = Colors.Red;
+			ResetInkManager();
+			
+			translate = new TranslateTransform();
+			scale = new ScaleTransform();
+			var group = new TransformGroup();
+			group.Children.Add(translate);
+			group.Children.Add(scale);
+			canvas.RenderTransform = group;
+		}
+
+		private void ResetInkManager()
+		{
+			inkManager = new InkManager();
 			inkManager.SetDefaultDrawingAttributes(attr);
 		}
 
 		private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
 		{
+			if (type != PointerType.None)
+				return;
+
 			// Get information about the pointer location.
-			PointerPoint pt = e.GetCurrentPoint(this);
+			PointerPoint pt = e.GetCurrentPoint(canvas);
 
 			// Accept input only from a pen or mouse with the left button pressed. 
 			PointerDeviceType pointerDevType = e.Pointer.PointerDeviceType;
@@ -84,68 +132,80 @@ namespace PenTouch
 					pointerDevType == PointerDeviceType.Mouse &&
 					pt.Properties.IsLeftButtonPressed)
 			{
-				// Pass the pointer information to the InkManager.
-				inkManager.ProcessPointerDown(pt);
-				penID = pt.PointerId;
+				pointID = pt.PointerId;
+				type = PointerType.Drawing;
 
 				LiveRenderBegin(pt);
+
+				// Pass the pointer information to the InkManager.
+				inkManager.ProcessPointerDown(pt);
 
 				e.Handled = true;
 			}
 
-			else if (pointerDevType == PointerDeviceType.Touch)
+			else if (pointerDevType == PointerDeviceType.Touch ||
+					pt.Properties.IsRightButtonPressed)
 			{
 				// Process touch input
+				pointID = pt.PointerId;
+				type = PointerType.Moving;
+				prevPoint = pt.Position;
+
+				e.Handled = true;
 			}
 		}
 
 		private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
 		{
-			if (e.Pointer.PointerId == penID)
+			PointerPoint pt = e.GetCurrentPoint(canvas);
+			
+			if (type == PointerType.Drawing
+				&& e.Pointer.PointerId == pointID)
 			{
-				PointerPoint pt = e.GetCurrentPoint(this);
-
 				LiveRenderUpdate(pt);
-
+				
 				// Pass the pointer information to the InkManager.
 				inkManager.ProcessPointerUpdate(pt);
+
+				e.Handled = true;
 			}
-			/*
-			else if (e.Pointer.PointerId == _touchID)
+			else if (type == PointerType.Moving
+				&& e.Pointer.PointerId == pointID)
 			{
 				// Process touch input
+				translate.X += pt.Position.X - prevPoint.X;
+				translate.Y += pt.Position.Y - prevPoint.Y;
+
+				e.Handled = true;
 			}
-			*/
-			e.Handled = true;
+
 		}
 
 		private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
 		{
-			if (e.Pointer.PointerId == penID)
-			{
-				PointerPoint pt = e.GetCurrentPoint(this);
+			PointerPoint pt = e.GetCurrentPoint(canvas);
 
+			if (type == PointerType.Drawing
+				&& e.Pointer.PointerId == pointID)
+			{
 				// Pass the pointer information to the InkManager. 
 				inkManager.ProcessPointerUp(pt);
-				
-				LiveRenderEnd();
+
 				BezierRender();
+
+				e.Handled = true;
 			}
-			/*
-			else if (e.Pointer.PointerId == _touchID)
+			else if (type == PointerType.Moving
+				&& e.Pointer.PointerId == pointID)
 			{
 				// Process touch input
-			}
-			*/
-			//_touchID = 0;
-			penID = 0;
 
-			e.Handled = true;
+				e.Handled = true;
+			}
+
+			type = PointerType.None;
 		}
 		
-		Point prevPoint;
-		List<Line> liveRender = new List<Line>();
-
 		private void LiveRenderBegin(PointerPoint pt)
 		{
 			prevPoint = pt.Position;
@@ -161,47 +221,81 @@ namespace PenTouch
 				Y1 = prevPoint.Y,
 				X2 = nowPoint.X,
 				Y2 = nowPoint.Y,
-				StrokeThickness = pt.Properties.Pressure * 13 + 1,
+				StrokeThickness = pt.Properties.Pressure * attr.Size.Width * 2,
+				//StrokeThickness = pt.Properties.Pressure * 40,
 				Stroke = new SolidColorBrush(Colors.Red),
 				StrokeStartLineCap = PenLineCap.Round,
 				StrokeEndLineCap = PenLineCap.Round,
 				StrokeLineJoin = PenLineJoin.Round,
 			};
 
-			Children.Add(line);
-
-			liveRender.Add(line);
+			liveRender.Children.Add(line);
 			
 			prevPoint = nowPoint;
 		}
 
 		private void LiveRenderEnd()
 		{
-			foreach (Line l in liveRender)
-				Children.Remove(l);
-
-			liveRender.Clear();
+			liveRender.Children.Clear();
 		}
 		
 		private void Button_Click_1(object sender, RoutedEventArgs e)
 		{
-			Children.Clear();
-			Children.Add(sender as UIElement);
-		}
+			liveRender.Children.Clear();
+			bezierRender.Children.Clear();
+			
+			translate.X = 0;
+			translate.Y = 0;
 
+			scale.ScaleX = 1;
+			scale.ScaleY = 1;
+			
+			ResetInkManager();
+		}
+		/*
 		private async void BezierRender()
 		{
-			var memoryStream = new MemoryStream();
-			var randomAccessStream = new Util.MemoryRandomAccessStream(memoryStream);
-			await inkManager.SaveAsync(randomAccessStream);
+			//await inkManager.SaveAsync(randomAccessStream);
+			
+			
 			bitmap.SetSource(randomAccessStream);
-		}
+			
+			image.Margin = new Thickness(
+				inkManager.BoundingRect.Left, 
+				inkManager.BoundingRect.Top, 0, 0);
 
-		/*
+			image.Width = inkManager.BoundingRect.Width;
+			image.Height = inkManager.BoundingRect.Height;
+			*//*
+			BitmapImage bmp = new BitmapImage();
+			bmp.SetSource(randomAccessStream);
+
+			Image img = new Image();
+			img.Source = bmp;
+			img.Margin = new Thickness(
+				inkManager.BoundingRect.Left,
+				inkManager.BoundingRect.Top, 0, 0);
+			img.Width = inkManager.BoundingRect.Width;
+			img.Height = inkManager.BoundingRect.Height;
+			
+			bezierRender.Children.Add(img);
+			
+			//ResetInkManager();
+			
+			LiveRenderEnd();
+		}*/
+
+		private void OnSizeChanged(object sender, SizeChangedEventArgs e)
+		{
+			clipRect.Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height);
+		}
+		
 		private void BezierRender()
 		{
 			foreach (var stroke in inkManager.GetStrokes())
 			{
+				var strokeCanvas = new Canvas();
+
 				var segs = stroke.GetRenderingSegments().GetEnumerator();
 				segs.MoveNext();
 
@@ -210,19 +304,24 @@ namespace PenTouch
 				while (segs.MoveNext())
 				{
 					var path = CreateBezierPath(segs.Current.BezierControlPoint1, segs.Current.BezierControlPoint2, segs.Current.Position, org, segs.Current.Pressure);
-
+					
 					// Add path to render so that it is rendered (on top of all the elements with same ZIndex).
 					// We want the live render to be on top of the Bezier render, so we set the ZIndex of the elements of the
 					// live render to 2 and that of the elements of the Bezier render to 1.
-					Children.Add(path);
+					strokeCanvas.Children.Add(path);
 					Windows.UI.Xaml.Controls.Canvas.SetZIndex(path, 1);
 
 					org = segs.Current.Position;
 				}
+
+				bezierRender.Children.Add(strokeCanvas);
 			}
+
+			ResetInkManager();
+			LiveRenderEnd();
 		}
 		
-		public static Path CreateBezierPath(Point p1, Point p2, Point p3, Point org, float pressure)
+		public Windows.UI.Xaml.Shapes.Path CreateBezierPath(Point p1, Point p2, Point p3, Point org, float pressure)
 		{
 			var figure = new PathFigure();
 			figure.StartPoint = org;
@@ -236,9 +335,9 @@ namespace PenTouch
 			var geometry = new PathGeometry();
 			geometry.Figures.Add(figure);
 
-			var path = new Path();
-			path.Stroke = new SolidColorBrush(Colors.Blue);
-			path.StrokeThickness = pressure * 30;
+			var path = new Windows.UI.Xaml.Shapes.Path();
+			path.Stroke = new SolidColorBrush(attr.Color);
+			path.StrokeThickness = pressure * attr.Size.Width * 2;
 			path.StrokeStartLineCap = PenLineCap.Round;
 			path.StrokeEndLineCap = PenLineCap.Round;
 			path.StrokeLineJoin = PenLineJoin.Round;
@@ -246,7 +345,45 @@ namespace PenTouch
 
 			return path;
 		}
-		*/
+
+		private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
+		{
+			PointerPoint pt = e.GetCurrentPoint(canvas);
+			Scaling(pt.Position, (pt.Properties.MouseWheelDelta > 0) ? 1.05 : 0.95);
+		}
+
+		private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
+		{
+			type = PointerType.Scaling;
+
+			Scaling(e.Position, e.Delta.Scale);
+		}
+
+		private void Scaling(Point p, double value)
+		{
+			if (scale.ScaleX * value > 2.0f)
+				value = 2.0f / scale.ScaleX;
+			if (scale.ScaleX * value < 0.5f)
+				value = 0.5f / scale.ScaleX;
+
+			Point t = new Point(p.X + translate.X, p.Y + translate.Y);
+
+			t.X *= (1 - value);
+			t.Y *= (1 - value);
+
+			translate.X += t.X;
+			translate.Y += t.Y;
+
+			scale.ScaleX *= value;
+			scale.ScaleY = scale.ScaleX;
+		}
+
+		private void Button_Click_2(object sender, RoutedEventArgs e)
+		{
+			if (bezierRender.Children.Count > 0)
+				bezierRender.Children.Remove(bezierRender.Children.Last());
+		}
+		
 		/*
 		public static Path CreateBezierPath(InkStroke stroke)
 		{

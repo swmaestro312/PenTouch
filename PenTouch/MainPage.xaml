@@ -12,6 +12,6 @@
             <ColumnDefinition Width="300"/>
             <ColumnDefinition/>
         </Grid.ColumnDefinitions>
-        <local:CanvasEx Grid.Column="1" Margin="0" Background="White" Width="Auto" Height="Auto"/>
+        <local:CanvasEx Grid.Column="1" Margin="0" Width="Auto" Height="Auto"/>
     </Grid>
 </Page>
