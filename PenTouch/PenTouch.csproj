@@ -106,7 +106,6 @@
     <Compile Include="CanvasEx.xaml.cs">
       <DependentUpon>CanvasEx.xaml</DependentUpon>
     </Compile>
-    <Compile Include="MemoryRandomAccessStream.cs" />
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>

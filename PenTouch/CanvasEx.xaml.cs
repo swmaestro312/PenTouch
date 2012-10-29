@@ -65,6 +65,7 @@ using Windows.UI.Xaml.Shapes;
  * Appbar를 추가했습니다.
  * 리팩토링을 하였습니다.
  * 색 변경 기능을 구현하였습니다.
+ * 굵기 변경 기능을 구현하였습니다.
  */
 
 namespace PenTouch
@@ -100,7 +101,7 @@ namespace PenTouch
 			inkAttr = new InkDrawingAttributes();
 			inkAttr.IgnorePressure = false;
 			inkAttr.PenTip = PenTipShape.Circle;
-			inkAttr.Size = new Size(40, 40);
+			inkAttr.Size = new Size(4, 4);
 			inkAttr.Color = Colors.Black;
 			ResetInkManager();
 			
@@ -339,6 +340,15 @@ namespace PenTouch
 				return; 
 
 			inkAttr.Color = color;
+			ResetInkManager();
+		}
+
+		public void ChangePenThickness(double value)
+		{
+			if (inkAttr == null)
+				return;
+
+			inkAttr.Size = new Size(value, value);
 			ResetInkManager();
 		}
 	}
