@@ -48,7 +48,7 @@
                     </Popup.ChildTransitions>
                     <Border Margin="225, -140, 0, 20"  Background="#CC000000" BorderBrush="White" BorderThickness="2">
                         <Slider x:Name="thickSelectSlider" Margin="0, 0, 0, 0" Width="Auto" Height="100" Orientation="Vertical" 
-                                Background="DarkGray" Foreground="Gray" BorderBrush="Black" BorderThickness="2" SizeChanged="ThicknessChanged" />
+                                Background="Gray" Foreground="LightGray" BorderBrush="Black" BorderThickness="2" SizeChanged="ThicknessChanged" />
                     </Border>
                 </Popup>
 
