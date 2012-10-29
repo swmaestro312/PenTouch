@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Linq;
+
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using Windows.UI;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -21,9 +24,20 @@ namespace PenTouch
 	/// </summary>
 	public sealed partial class MainPage : Page
 	{
+		private string thickString;
+
 		public MainPage()
 		{
 			this.InitializeComponent();
+
+			colorSelectList.Items.Add("Red");
+			colorSelectList.Items.Add("Blue");
+			colorSelectList.Items.Add("Yellow");
+			colorSelectList.Items.Add("Green");
+			colorSelectList.Items.Add("White");
+			colorSelectList.Items.Add("Black");
+
+			colorSelectList.SelectedItem = "Black";
 		}
 
 		/// <summary>
@@ -33,7 +47,38 @@ namespace PenTouch
 		/// 속성은 일반적으로 페이지를 구성하는 데 사용됩니다.</param>
 		protected override void OnNavigatedTo(NavigationEventArgs e)
 		{
-			
+
+		}
+
+		private void ClearButtonClicked(object sender, RoutedEventArgs e)
+		{
+			mainCanvas.Clear();
+		}
+
+		private void UndoButtonClicked(object sender, RoutedEventArgs e)
+		{
+			mainCanvas.Undo();
+		}
+
+		private void ColorSelectButtonClicked(object sender, RoutedEventArgs e)
+		{
+			colorSelectPopup.IsOpen = true;
+		}
+
+		private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+		{
+			mainCanvas.ChangePenColor((colorSelectButton.Foreground as SolidColorBrush).Color);
+			colorSelectPopup.IsOpen = false;
+		}
+
+		private void ThickSelectButtonClicked(object sender, RoutedEventArgs e)
+		{
+			thickSelectPopup.IsOpen = true;
+		}
+
+		private void ThicknessChanged(object sender, SizeChangedEventArgs e)
+		{
+			thickString = "Thickness : " + e.NewSize;
 		}
 	}
 }

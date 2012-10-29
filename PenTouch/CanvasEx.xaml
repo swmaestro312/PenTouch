@@ -5,7 +5,7 @@
     xmlns:local="using:PenTouch"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d" Height="239" Width="379" PointerMoved="OnPointerMoved" PointerPressed="OnPointerPressed" PointerReleased="OnPointerReleased" PointerExited="OnPointerReleased" Loaded="OnLoaded" SizeChanged="OnSizeChanged" Background="#FF3D9144" PointerWheelChanged="OnPointerWheelChanged" ManipulationDelta="OnManipulationDelta" ManipulationMode="Scale" >
+    mc:Ignorable="d" Height="239" Width="379" PointerMoved="OnPointerMoved" PointerPressed="OnPointerPressed" PointerReleased="OnPointerReleased" PointerExited="OnPointerReleased" Loaded="OnLoaded" SizeChanged="OnSizeChanged" Background="#FFFFFFFF" PointerWheelChanged="OnPointerWheelChanged" ManipulationDelta="OnManipulationDelta" ManipulationMode="Scale" >
     <Canvas x:Name="canvas">
         <Canvas x:Name="bezierRender" />
         <Canvas x:Name="liveRender" />
