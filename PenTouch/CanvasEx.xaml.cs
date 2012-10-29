@@ -20,8 +20,6 @@ using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Shapes;
 
-using Util;
-
 // 사용자 정의 컨트롤 항목 템플릿에 대한 설명은 http://go.microsoft.com/fwlink/?LinkId=234236에 나와 있습니다.
 
 /* Programming Note
@@ -239,19 +237,6 @@ namespace PenTouch
 			liveRender.Children.Clear();
 		}
 		
-		private void Button_Click_1(object sender, RoutedEventArgs e)
-		{
-			liveRender.Children.Clear();
-			bezierRender.Children.Clear();
-			
-			translate.X = 0;
-			translate.Y = 0;
-
-			scale.ScaleX = 1;
-			scale.ScaleY = 1;
-			
-			ResetInkManager();
-		}
 		/*
 		private async void BezierRender()
 		{
@@ -378,7 +363,21 @@ namespace PenTouch
 			scale.ScaleY = scale.ScaleX;
 		}
 
-		private void Button_Click_2(object sender, RoutedEventArgs e)
+		public void Clear()
+		{
+			liveRender.Children.Clear();
+			bezierRender.Children.Clear();
+
+			translate.X = 0;
+			translate.Y = 0;
+
+			scale.ScaleX = 1;
+			scale.ScaleY = 1;
+
+			ResetInkManager();
+		}
+
+		private void Undo()
 		{
 			if (bezierRender.Children.Count > 0)
 				bezierRender.Children.Remove(bezierRender.Children.Last());
