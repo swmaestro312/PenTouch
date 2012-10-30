@@ -70,7 +70,7 @@ using Windows.UI.Xaml.Shapes;
  * Scaling이 너무 느립니다. 보완하고 싶은데.. 
  * 
  * 12 10 30
- * Scaling 속도를 DoubleAnimation을 통해 개선하였습니다.
+ * Scaling 속도를 DoubleAnimation을 통해 개선하였습니다. 1.5배씩 확대 축소됨.
  * 기존 Translate > Scale을 Scale > Transform으로 바꾸고 핀치 투 줌을 다시 구현하였습니다.
  */
 
@@ -91,12 +91,14 @@ namespace PenTouch
 		ActionType	actionType = ActionType.None;
 		uint		pointID;
 		Point		prevPoint;
+		int			zoomLevel;
 
 		public CanvasEx()
 		{
 			this.InitializeComponent();
 
 			Clip = clipRect;
+			zoomLevel = 0;
 		}
 
 		private void OnLoaded(object sender, RoutedEventArgs e)
@@ -283,28 +285,40 @@ namespace PenTouch
 		{
 			PointerPoint pt = e.GetCurrentPoint(canvas);
 			Debug.WriteLine(pt.Properties.MouseWheelDelta);
-			Scaling(pt.Position, (pt.Properties.MouseWheelDelta > 0) ? 2 : 0.5);
+			Scaling(pt.Position, pt.Properties.MouseWheelDelta > 0);
 			e.Handled = true;
 		}
 
 		private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
 		{
-			Scaling(e.Position, (e.Delta.Scale > 0) ? 2 : 0.5);
+			Scaling(e.Position, e.Delta.Scale > 0);
 			e.Handled = true;
 		}
 
-		private void Scaling(Point p, double value)
+		private void Scaling(Point p, bool zoomin)
 		{
 			if (actionType == ActionType.Scaling)
 				return;
 
+			double value = 1.5;
+			if (zoomin)
+			{
+				if (zoomLevel > 1)
+					return;
+
+				++zoomLevel;
+			}
+			else
+			{
+				if (zoomLevel < -1)
+					return;
+				
+				--zoomLevel;
+				value = 1 / value;
+			}
+
 			actionType = ActionType.Scaling;
-			
-			if (scale.ScaleX * value > 2.0f)
-				value = 2.0f / scale.ScaleX;
-			if (scale.ScaleX * value < 0.5f)
-				value = 0.5f / scale.ScaleX;
-			
+
 			Point t = new Point(p.X * scale.ScaleX + translate.X, p.Y * scale.ScaleX + translate.Y);
 
 			t.X -= t.X * (1 / value);

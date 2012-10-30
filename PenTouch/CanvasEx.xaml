@@ -15,10 +15,10 @@
         </Canvas.RenderTransform>
         <Canvas.Resources>
             <Storyboard x:Name="storyboard" Completed="OnAnimCompleted">
-                <DoubleAnimation EnableDependentAnimation="True" x:Name="animScaleX" Duration="0:0:0.5" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleX" To="1" />
-                <DoubleAnimation EnableDependentAnimation="True" x:Name="animScaleY" Duration="0:0:0.5" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleY" To="1" />
-                <DoubleAnimation EnableDependentAnimation="True" x:Name="animTranslateX" Duration="0:0:0.5" Storyboard.TargetName="translate" Storyboard.TargetProperty="X" By="0" />
-                <DoubleAnimation EnableDependentAnimation="True" x:Name="animTranslateY" Duration="0:0:0.5" Storyboard.TargetName="translate" Storyboard.TargetProperty="Y" By="0" />
+                <DoubleAnimation x:Name="animScaleX" Duration="0:0:0.5" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleX" />
+                <DoubleAnimation x:Name="animScaleY" Duration="0:0:0.5" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleY" />
+                <DoubleAnimation x:Name="animTranslateX" Duration="0:0:0.5" Storyboard.TargetName="translate" Storyboard.TargetProperty="X" />
+                <DoubleAnimation x:Name="animTranslateY" Duration="0:0:0.5" Storyboard.TargetName="translate" Storyboard.TargetProperty="Y" />
             </Storyboard>
         </Canvas.Resources>
         <Canvas x:Name="bezierRender" />
