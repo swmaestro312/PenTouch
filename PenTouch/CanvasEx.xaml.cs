@@ -17,6 +17,7 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Shapes;
 
@@ -65,6 +66,12 @@ using Windows.UI.Xaml.Shapes;
  * Appbar를 추가했습니다.
  * 리팩토링을 하였습니다.
  * 색 변경 기능을 구현하였습니다.
+ * 굵기 변경 기능을 구현하였습니다.
+ * Scaling이 너무 느립니다. 보완하고 싶은데.. 
+ * 
+ * 12 10 30
+ * Scaling 속도를 DoubleAnimation을 통해 개선하였습니다.
+ * 기존 Translate > Scale을 Scale > Transform으로 바꾸고 핀치 투 줌을 다시 구현하였습니다.
  */
 
 namespace PenTouch
@@ -85,9 +92,6 @@ namespace PenTouch
 		uint		pointID;
 		Point		prevPoint;
 
-		TranslateTransform	translate;
-		ScaleTransform		scale;
-
 		public CanvasEx()
 		{
 			this.InitializeComponent();
@@ -100,16 +104,9 @@ namespace PenTouch
 			inkAttr = new InkDrawingAttributes();
 			inkAttr.IgnorePressure = false;
 			inkAttr.PenTip = PenTipShape.Circle;
-			inkAttr.Size = new Size(40, 40);
+			inkAttr.Size = new Size(4, 4);
 			inkAttr.Color = Colors.Black;
 			ResetInkManager();
-			
-			translate = new TranslateTransform();
-			scale = new ScaleTransform();
-			var group = new TransformGroup();
-			group.Children.Add(translate);
-			group.Children.Add(scale);
-			canvas.RenderTransform = group;
 		}
 
 		private void ResetInkManager()
@@ -160,8 +157,10 @@ namespace PenTouch
 			}
 			else if (actionType == ActionType.Moving && e.Pointer.PointerId == pointID)
 			{
-				translate.X += pt.Position.X - prevPoint.X;
-				translate.Y += pt.Position.Y - prevPoint.Y;
+				translate.X += (pt.Position.X - prevPoint.X) * scale.ScaleX;
+				translate.Y += (pt.Position.Y - prevPoint.Y) * scale.ScaleY;
+
+				Debug.WriteLine(e.Pointer.ToString() + " " + pt.Position + " " + prevPoint);
 
 				e.Handled = true;
 			}
@@ -283,34 +282,56 @@ namespace PenTouch
 		private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
 		{
 			PointerPoint pt = e.GetCurrentPoint(canvas);
-			Scaling(pt.Position, (pt.Properties.MouseWheelDelta > 0) ? 1.1 : 0.9);
+			Debug.WriteLine(pt.Properties.MouseWheelDelta);
+			Scaling(pt.Position, (pt.Properties.MouseWheelDelta > 0) ? 2 : 0.5);
 			e.Handled = true;
 		}
 
 		private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
 		{
-			actionType = ActionType.Scaling;
-			Scaling(e.Position, e.Delta.Scale);
+			Scaling(e.Position, (e.Delta.Scale > 0) ? 2 : 0.5);
 			e.Handled = true;
 		}
 
 		private void Scaling(Point p, double value)
 		{
+			if (actionType == ActionType.Scaling)
+				return;
+
+			actionType = ActionType.Scaling;
+			
 			if (scale.ScaleX * value > 2.0f)
 				value = 2.0f / scale.ScaleX;
 			if (scale.ScaleX * value < 0.5f)
 				value = 0.5f / scale.ScaleX;
+			
+			Point t = new Point(p.X * scale.ScaleX + translate.X, p.Y * scale.ScaleX + translate.Y);
 
-			Point t = new Point(p.X + translate.X, p.Y + translate.Y);
-
-			t.X *= (1 - value);
-			t.Y *= (1 - value);
-
-			translate.X += t.X;
-			translate.Y += t.Y;
-
+			t.X -= t.X * (1 / value);
+			t.Y -= t.Y * (1 / value);
+			/*
 			scale.ScaleX *= value;
-			scale.ScaleY = scale.ScaleX;
+			scale.ScaleY *= value;
+
+			translate.X -= t.X;
+			translate.Y -= t.Y;
+
+			translate.X *= value;
+			translate.Y *= value;
+			/*/
+			animTranslateX.To = (translate.X - t.X) * value;
+			animTranslateY.To = (translate.Y - t.Y) * value;
+
+			animScaleX.To = scale.ScaleX * value;
+			animScaleY.To = scale.ScaleY * value;
+			
+			storyboard.Begin();
+			//*/
+		}
+
+		private void OnAnimCompleted(object sender, object e)
+		{
+			actionType = ActionType.None;
 		}
 
 		public void Clear()
@@ -339,6 +360,15 @@ namespace PenTouch
 				return; 
 
 			inkAttr.Color = color;
+			ResetInkManager();
+		}
+
+		public void ChangePenThickness(double value)
+		{
+			if (inkAttr == null)
+				return;
+
+			inkAttr.Size = new Size(value, value);
 			ResetInkManager();
 		}
 	}

@@ -7,6 +7,20 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d" Height="239" Width="379" PointerMoved="OnPointerMoved" PointerPressed="OnPointerPressed" PointerReleased="OnPointerReleased" PointerExited="OnPointerReleased" Loaded="OnLoaded" SizeChanged="OnSizeChanged" Background="#FFFFFFFF" PointerWheelChanged="OnPointerWheelChanged" ManipulationDelta="OnManipulationDelta" ManipulationMode="Scale" >
     <Canvas x:Name="canvas">
+        <Canvas.RenderTransform>
+            <TransformGroup>
+                <ScaleTransform x:Name="scale" />
+                <TranslateTransform x:Name="translate" />
+            </TransformGroup>
+        </Canvas.RenderTransform>
+        <Canvas.Resources>
+            <Storyboard x:Name="storyboard" Completed="OnAnimCompleted">
+                <DoubleAnimation EnableDependentAnimation="True" x:Name="animScaleX" Duration="0:0:0.5" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleX" To="1" />
+                <DoubleAnimation EnableDependentAnimation="True" x:Name="animScaleY" Duration="0:0:0.5" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleY" To="1" />
+                <DoubleAnimation EnableDependentAnimation="True" x:Name="animTranslateX" Duration="0:0:0.5" Storyboard.TargetName="translate" Storyboard.TargetProperty="X" By="0" />
+                <DoubleAnimation EnableDependentAnimation="True" x:Name="animTranslateY" Duration="0:0:0.5" Storyboard.TargetName="translate" Storyboard.TargetProperty="Y" By="0" />
+            </Storyboard>
+        </Canvas.Resources>
         <Canvas x:Name="bezierRender" />
         <Canvas x:Name="liveRender" />
         <!--Image x:Name="image" HorizontalAlignment="Left" VerticalAlignment="Top" Source="Assets/Logo.png" Stretch="Fill" /-->

@@ -24,20 +24,9 @@ namespace PenTouch
 	/// </summary>
 	public sealed partial class MainPage : Page
 	{
-		private string thickString;
-
 		public MainPage()
 		{
 			this.InitializeComponent();
-
-			colorSelectList.Items.Add("Red");
-			colorSelectList.Items.Add("Blue");
-			colorSelectList.Items.Add("Yellow");
-			colorSelectList.Items.Add("Green");
-			colorSelectList.Items.Add("White");
-			colorSelectList.Items.Add("Black");
-
-			colorSelectList.SelectedItem = "Black";
 		}
 
 		/// <summary>
@@ -67,6 +56,9 @@ namespace PenTouch
 
 		private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
+			if (mainCanvas == null)
+				return;
+
 			mainCanvas.ChangePenColor((colorSelectButton.Foreground as SolidColorBrush).Color);
 			colorSelectPopup.IsOpen = false;
 		}
@@ -76,9 +68,12 @@ namespace PenTouch
 			thickSelectPopup.IsOpen = true;
 		}
 
-		private void ThicknessChanged(object sender, SizeChangedEventArgs e)
+		private void ThicknessChanged(object sender, RangeBaseValueChangedEventArgs e)
 		{
-			thickString = "Thickness : " + e.NewSize;
+			if (mainCanvas == null)
+				return;
+
+			mainCanvas.ChangePenThickness(thickSelectSlider.Value);
 		}
 	}
 }
