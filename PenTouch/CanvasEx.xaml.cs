@@ -161,9 +161,6 @@ namespace PenTouch
 			{
 				translate.X += (pt.Position.X - prevPoint.X) * scale.ScaleX;
 				translate.Y += (pt.Position.Y - prevPoint.Y) * scale.ScaleY;
-
-				Debug.WriteLine(e.Pointer.ToString() + " " + pt.Position + " " + prevPoint);
-
 				e.Handled = true;
 			}
 		}

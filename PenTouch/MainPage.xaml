@@ -15,7 +15,7 @@
 		<AppBar Background="#77000000" ScrollViewer.HorizontalScrollBarVisibility="Visible">
 			<Grid>
 				<Grid.ColumnDefinitions>
-					<ColumnDefinition/>
+					<ColumnDefinition Width="Auto"/>
 					<ColumnDefinition/>
 				</Grid.ColumnDefinitions>
 
