@@ -72,6 +72,9 @@ using Windows.UI.Xaml.Shapes;
  * 12 10 30
  * Scaling 속도를 DoubleAnimation을 통해 개선하였습니다. 1.5배씩 확대 축소됨.
  * 기존 Translate > Scale을 Scale > Transform으로 바꾸고 핀치 투 줌을 다시 구현하였습니다.
+ * 
+ * 12 11 03 ~ 04
+ * Network 연동
  */
 
 namespace PenTouch
@@ -109,6 +112,9 @@ namespace PenTouch
 			inkAttr.Size = new Size(4, 4);
 			inkAttr.Color = Colors.Black;
 			ResetInkManager();
+
+			Network.OnNetworkRecieved += OnNetworkRecieved;
+			Network.connect();
 		}
 
 		private void ResetInkManager()
@@ -239,6 +245,7 @@ namespace PenTouch
 				while (segs.MoveNext())
 				{
 					var path = CreateBezierPath(segs.Current.BezierControlPoint1, segs.Current.BezierControlPoint2, segs.Current.Position, org, segs.Current.Pressure);
+					Network.sendData(segs.Current.BezierControlPoint1, segs.Current.BezierControlPoint2, segs.Current.Position, org, segs.Current.Pressure);
 					
 					strokeCanvas.Children.Add(path);
 					Windows.UI.Xaml.Controls.Canvas.SetZIndex(path, 1);
@@ -251,6 +258,12 @@ namespace PenTouch
 
 			ResetInkManager();
 			LiveRenderEnd();
+		}
+
+		private void OnNetworkRecieved(Point p1, Point p2, Point p3, Point p4, float pressure)
+		{
+			var path = CreateBezierPath(p1, p2, p3, p4, pressure);
+			bezierRender.Children.Add(path);
 		}
 		
 		public Windows.UI.Xaml.Shapes.Path CreateBezierPath(Point p1, Point p2, Point p3, Point org, float pressure)
