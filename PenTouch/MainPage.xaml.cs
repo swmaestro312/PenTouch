@@ -75,6 +75,12 @@ namespace PenTouch
 
 			mainCanvas.ChangePenThickness(thickSelectSlider.Value);
 		}
+
+		private void PalmBlockButtonClicked(object sender, RoutedEventArgs e)
+		{
+			mainCanvas.StartPalmBlockSelect();
+			bottomAppBar.IsOpen = false;
+		}
 	}
 }
  

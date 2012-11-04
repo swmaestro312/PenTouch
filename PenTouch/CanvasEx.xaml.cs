@@ -13,6 +13,7 @@ using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Input;
 using Windows.UI.Input.Inking;
+using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
@@ -73,8 +74,11 @@ using Windows.UI.Xaml.Shapes;
  * Scaling 속도를 DoubleAnimation을 통해 개선하였습니다. 1.5배씩 확대 축소됨.
  * 기존 Translate > Scale을 Scale > Transform으로 바꾸고 핀치 투 줌을 다시 구현하였습니다.
  * 
+ * 12 11 01
+ * SkyDrive에 연동을 하면.. 서버, 트래픽, 하드, 파일시스템, 권한 문제같은게 한번에 해결되는데..
+ * 
  * 12 11 03 ~ 04
- * Network 연동
+ * Network 연동 작업, Palm Block 작업
  */
 
 namespace PenTouch
@@ -86,12 +90,16 @@ namespace PenTouch
 		InkManager				inkManager;
 		InkDrawingAttributes	inkAttr;
 
+		Polygon palmBlock;
+		int palmSide;
+		Line palmTempLine;
+
 		enum ActionType
 		{
-			None, Drawing, Moving, Scaling
+			None, Drawing, Moving, Scaling, Palm
 		}
 
-		ActionType	actionType = ActionType.None;
+		ActionType	actionType;
 		uint		pointID;
 		Point		prevPoint;
 		int			zoomLevel;
@@ -99,6 +107,12 @@ namespace PenTouch
 		public CanvasEx()
 		{
 			this.InitializeComponent();
+
+			palmBlock = new Polygon();
+			rootCanvas.Children.Add(palmBlock);
+			palmBlock.StrokeThickness = 3;
+			palmBlock.FillRule = FillRule.Nonzero;
+			palmBlock.Fill = new SolidColorBrush(Color.FromArgb(0x22, 0xff, 0, 0));
 
 			Clip = clipRect;
 			zoomLevel = 0;
@@ -112,9 +126,9 @@ namespace PenTouch
 			inkAttr.Size = new Size(4, 4);
 			inkAttr.Color = Colors.Black;
 			ResetInkManager();
-
-			Network.OnNetworkRecieved += OnNetworkRecieved;
-			Network.connect();
+			
+			//Network.OnNetworkRecieved += OnNetworkRecieved;
+			//Network.connect();
 		}
 
 		private void ResetInkManager()
@@ -123,15 +137,70 @@ namespace PenTouch
 			inkManager.SetDefaultDrawingAttributes(inkAttr);
 		}
 
+		private double Distance(Point p1, Point p2)
+		{
+			return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
+		}
+
+		private double Angle(Point p1, Point p2)
+		{
+			return Math.Atan2(p2.X - p1.X, p2.Y - p1.Y);
+		}
+
+		private bool PointInPalmBlock(Point p)
+		{
+			if (palmBlock.Visibility == Visibility.Collapsed)
+				return false;
+
+			int i, j = palmBlock.Points.Count - 1;
+			bool oddNodes = false;
+
+			for (i = 0; i < palmBlock.Points.Count; i++)
+			{
+				if ((palmBlock.Points[i].Y < p.Y && palmBlock.Points[j].Y >= p.Y
+				|| palmBlock.Points[j].Y < p.Y && palmBlock.Points[i].Y >= p.Y)
+				&& (palmBlock.Points[i].X <= p.X || palmBlock.Points[j].X <= p.X))
+				{
+					oddNodes ^= (palmBlock.Points[i].X + (p.Y - palmBlock.Points[i].Y) / (palmBlock.Points[j].Y - palmBlock.Points[i].Y) * (palmBlock.Points[j].X - palmBlock.Points[i].X) < p.X);
+				}
+
+				j = i;
+			}
+
+			return oddNodes;
+		} 
+
 		private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
 		{
-			if (actionType != ActionType.None)
+			if (actionType != ActionType.None &&
+				actionType != ActionType.Palm)
 				return;
 
 			PointerPoint pt = e.GetCurrentPoint(canvas);
 			PointerDeviceType pointerDevType = e.Pointer.PointerDeviceType;
-			
-			if (pointerDevType == PointerDeviceType.Pen ||
+
+			PointerPoint check = e.GetCurrentPoint(palmBlock);
+			if (PointInPalmBlock(check.Position))
+				return;
+		
+			if (actionType == ActionType.Palm)
+			{
+				pt = e.GetCurrentPoint(rootCanvas);
+				PointerPoint palmPt = e.GetCurrentPoint(palmBlock);
+
+				palmBlock.Points.Clear();
+				palmBlock.Points.Add(new Point(0, 0));
+				palmBlock.Points.Add(palmPt.Position);
+
+				palmTempLine = new Line();
+				palmTempLine.StrokeDashArray.Add(5);
+				palmTempLine.StrokeDashArray.Add(5);
+				palmTempLine.Stroke = new SolidColorBrush(Colors.Black);
+				rootCanvas.Children.Add(palmTempLine);
+
+				palmSide = 0;
+			}
+			else if (pointerDevType == PointerDeviceType.Pen ||
 					pointerDevType == PointerDeviceType.Mouse &&
 					pt.Properties.IsLeftButtonPressed)
 			{
@@ -140,7 +209,6 @@ namespace PenTouch
 
 				e.Handled = true;
 			}
-
 			else if (pointerDevType == PointerDeviceType.Touch ||
 					pt.Properties.IsRightButtonPressed)
 			{
@@ -155,8 +223,48 @@ namespace PenTouch
 		private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
 		{
 			PointerPoint pt = e.GetCurrentPoint(canvas);
-			
-			if (actionType == ActionType.Drawing && e.Pointer.PointerId == pointID)
+
+			if (actionType == ActionType.Palm && palmBlock.Points.Count > 0)
+			{
+				pt = e.GetCurrentPoint(rootCanvas);
+				PointerPoint palmPt = e.GetCurrentPoint(palmBlock);
+
+				bool angle = Angle(new Point(0, 0), palmBlock.Points[palmBlock.Points.Count - 1]) > Angle(new Point(0, 0), palmPt.Position);
+
+				if (angle && palmSide >= 0)
+				{
+					if (palmSide == 0)
+					{
+						palmSide = 1;
+						palmBlock.Points.Insert(1, new Point(palmPt.Position.X, palmBlock.Margin.Top));
+					}
+
+					//CW
+					palmTempLine.X1 = pt.Position.X;
+					palmTempLine.Y1 = pt.Position.Y;
+					palmTempLine.X2 = palmBlock.Margin.Left;
+					palmTempLine.Y2 = pt.Position.Y;
+
+					palmBlock.Points.Add(palmPt.Position);
+				}
+				else if (!angle && palmSide <= 0)
+				{
+					if (palmSide == 0)
+					{
+						palmSide = -1;
+						palmBlock.Points.Insert(1, new Point(palmBlock.Margin.Left, palmPt.Position.Y));
+					}
+
+					//CCW
+					palmTempLine.X1 = pt.Position.X;
+					palmTempLine.Y1 = pt.Position.Y;
+					palmTempLine.X2 = pt.Position.X;
+					palmTempLine.Y2 = palmBlock.Margin.Top;
+
+					palmBlock.Points.Add(palmPt.Position);
+				}
+			}
+			else if (actionType == ActionType.Drawing && e.Pointer.PointerId == pointID)
 			{
 				LiveRenderUpdate(pt);
 				inkManager.ProcessPointerUpdate(pt);
@@ -175,7 +283,21 @@ namespace PenTouch
 		{
 			PointerPoint pt = e.GetCurrentPoint(canvas);
 
-			if (actionType == ActionType.Drawing && e.Pointer.PointerId == pointID)
+			if (actionType == ActionType.Palm)
+			{
+				pt = e.GetCurrentPoint(rootCanvas);
+				PointerPoint palmPt = e.GetCurrentPoint(palmBlock);
+
+				rootCanvas.Children.Remove(palmTempLine);
+
+				if (palmSide > 0)
+					palmBlock.Points.Add(new Point(palmBlock.Margin.Left, palmPt.Position.Y));
+				if (palmSide < 0)
+					palmBlock.Points.Add(new Point(palmPt.Position.X, palmBlock.Margin.Top));
+				
+				actionType = ActionType.None;
+			}
+			else if (actionType == ActionType.Drawing && e.Pointer.PointerId == pointID)
 			{
 				inkManager.ProcessPointerUp(pt);
 				BezierRender();
@@ -228,7 +350,13 @@ namespace PenTouch
 
 		private void OnSizeChanged(object sender, SizeChangedEventArgs e)
 		{
+			palmBlock.Margin = new Thickness(e.NewSize.Width, e.NewSize.Height, 0, 0);
 			clipRect.Rect = new Rect(0, 0, e.NewSize.Width, e.NewSize.Height);
+
+			if (ApplicationView.Value == ApplicationViewState.Snapped)
+				palmBlock.Visibility = Visibility.Collapsed;
+			else
+				palmBlock.Visibility = Visibility.Visible;
 		}
 		
 		private void BezierRender()
@@ -245,7 +373,7 @@ namespace PenTouch
 				while (segs.MoveNext())
 				{
 					var path = CreateBezierPath(segs.Current.BezierControlPoint1, segs.Current.BezierControlPoint2, segs.Current.Position, org, segs.Current.Pressure);
-					Network.sendData(segs.Current.BezierControlPoint1, segs.Current.BezierControlPoint2, segs.Current.Position, org, segs.Current.Pressure);
+			//		Network.sendData(segs.Current.BezierControlPoint1, segs.Current.BezierControlPoint2, segs.Current.Position, org, segs.Current.Pressure);
 					
 					strokeCanvas.Children.Add(path);
 					Windows.UI.Xaml.Controls.Canvas.SetZIndex(path, 1);
@@ -293,6 +421,9 @@ namespace PenTouch
 
 		private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
 		{
+			if (PointInPalmBlock(e.GetCurrentPoint(palmBlock).Position))
+				return;
+
 			PointerPoint pt = e.GetCurrentPoint(canvas);
 			Debug.WriteLine(pt.Properties.MouseWheelDelta);
 			Scaling(pt.Position, pt.Properties.MouseWheelDelta > 0);
@@ -301,6 +432,9 @@ namespace PenTouch
 
 		private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
 		{
+			if (PointInPalmBlock(new Point(e.Position.X - palmBlock.Margin.Left, e.Position.Y - palmBlock.Margin.Top)))
+				return;
+
 			Scaling(e.Position, e.Delta.Scale > 0);
 			e.Handled = true;
 		}
@@ -394,6 +528,12 @@ namespace PenTouch
 
 			inkAttr.Size = new Size(value, value);
 			ResetInkManager();
+		}
+
+		public void StartPalmBlockSelect()
+		{
+			actionType = ActionType.Palm;
+			palmBlock.Points.Clear();
 		}
 	}
 }

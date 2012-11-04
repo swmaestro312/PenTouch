@@ -1310,7 +1310,6 @@
     </Style>
     -->
 
-    <!--
     <Style x:Key="FullScreenAppBarButtonStyle" TargetType="ButtonBase" BasedOn="{StaticResource AppBarButtonStyle}">
         <Setter Property="AutomationProperties.AutomationId" Value="FullScreenAppBarButton"/>
         <Setter Property="AutomationProperties.Name" Value="Full Screen"/>
@@ -1391,8 +1390,6 @@
         <Setter Property="AutomationProperties.Name" Value="Four Bars"/>
         <Setter Property="Content" Value="&#xE1E9;"/>
     </Style>
-
-    -->
 
     <!-- 제목 및 스타일 -->
 

@@ -59,7 +59,7 @@ namespace PenTouch
 
         public static async void connect()
         {
-            HostName hostname = new HostName("192.168.0.208");
+			HostName hostname = new HostName("10.64.232.197");
             String servicename = "21122";
             Debug.WriteLine("Connecting");
 
