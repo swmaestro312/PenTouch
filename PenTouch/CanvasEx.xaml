@@ -16,10 +16,26 @@
 			</Canvas.RenderTransform>
 			<Canvas.Resources>
 				<Storyboard x:Name="storyboard" Completed="OnAnimCompleted">
-					<DoubleAnimation x:Name="animScaleX" Duration="0:0:0.5" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleX" />
-					<DoubleAnimation x:Name="animScaleY" Duration="0:0:0.5" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleY" />
-					<DoubleAnimation x:Name="animTranslateX" Duration="0:0:0.5" Storyboard.TargetName="translate" Storyboard.TargetProperty="X" />
-					<DoubleAnimation x:Name="animTranslateY" Duration="0:0:0.5" Storyboard.TargetName="translate" Storyboard.TargetProperty="Y" />
+					<DoubleAnimation x:Name="animScaleX" Duration="0:0:0.3" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleX">
+						<DoubleAnimation.EasingFunction>
+							<ExponentialEase />
+						</DoubleAnimation.EasingFunction>
+					</DoubleAnimation>
+					<DoubleAnimation x:Name="animScaleY" Duration="0:0:0.3" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleY">
+						<DoubleAnimation.EasingFunction>
+							<ExponentialEase />
+						</DoubleAnimation.EasingFunction>
+					</DoubleAnimation>
+					<DoubleAnimation x:Name="animTranslateX" Duration="0:0:0.3" Storyboard.TargetName="translate" Storyboard.TargetProperty="X">
+						<DoubleAnimation.EasingFunction>
+							<ExponentialEase />
+						</DoubleAnimation.EasingFunction>
+					</DoubleAnimation>
+					<DoubleAnimation x:Name="animTranslateY" Duration="0:0:0.3" Storyboard.TargetName="translate" Storyboard.TargetProperty="Y">
+						<DoubleAnimation.EasingFunction>
+							<ExponentialEase />
+						</DoubleAnimation.EasingFunction>
+					</DoubleAnimation>
 				</Storyboard>
 			</Canvas.Resources>
 			<Canvas x:Name="bezierRender" />
