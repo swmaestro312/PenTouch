@@ -22,11 +22,11 @@
   <ItemGroup>
     <AppxPackagedFile Include="C:\Programming\PenTouch\PenTouch\bin\Debug\PenTouch.exe">
       <PackagePath>PenTouch.exe</PackagePath>
-      <Modified>2012-11-05T05:58:03.118</Modified>
+      <Modified>2012-11-05T06:05:36.450</Modified>
     </AppxPackagedFile>
     <AppxPackagedFile Include="C:\Programming\PenTouch\PenTouch\bin\Debug\PenTouch.pdb">
       <PackagePath>PenTouch.pdb</PackagePath>
-      <Modified>2012-11-05T05:58:03.094</Modified>
+      <Modified>2012-11-05T06:05:36.424</Modified>
     </AppxPackagedFile>
     <AppxPackagedFile Include="C:\Programming\PenTouch\PenTouch\Assets\Logo.png">
       <PackagePath>Assets\Logo.png</PackagePath>

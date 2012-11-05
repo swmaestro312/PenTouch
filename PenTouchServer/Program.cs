@@ -19,7 +19,7 @@ namespace PenTouchServer
 		{
 			//clientNum = 0;
 			array = new List<TcpClient>();
-			TcpListener socketListener = new TcpListener(3400);
+			TcpListener socketListener = new TcpListener(21122);
 			socketListener.Start();
 			Console.WriteLine("begin accept");
 			socketListener.BeginAcceptSocket(new AsyncCallback(DoAcceptSocketCallback), socketListener);
