@@ -59,8 +59,8 @@ namespace PenTouch
 
         public static async void connect()
         {
-			HostName hostname = new HostName("10.64.232.197");
-            String servicename = "21122";
+			HostName hostname = new HostName("myaustin.iptime.org");
+            String servicename = "3400";
             Debug.WriteLine("Connecting");
 
             try

@@ -1,4 +1,4 @@
-﻿//#define NETWORK
+﻿#define NETWORK
 
 using System;
 using System.Diagnostics;
