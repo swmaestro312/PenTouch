@@ -1,6 +1,4 @@
-﻿#define NETWORK
-
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Linq;
 
@@ -14,7 +12,19 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Shapes;
+
+/*
+ * 12 11 05~06
+ * 퍼포먼스를 해결해야 합니다.
+ * 리팩토링
+ * 
+ * 12 11 07
+ * 라인 두께, 길이 제한 설정
+ * 팜블락 반대방향도 가능하게 설정
+ * 터치 캔슬 펜 설정
+ */
 
 namespace PenTouch
 {
@@ -22,23 +32,18 @@ namespace PenTouch
 	{
 		RectangleGeometry clipRect = new RectangleGeometry();
 
-		InkManager				inkManager;
-		InkDrawingAttributes	inkAttr;
+		Canvas liveRender = null;
+
+		double strokeThickness = 4;
+		Brush strokeColor = new SolidColorBrush(Colors.Black);
 
 		Polygon palmBlock;
-		int palmSide;
-		Line palmTempLine;
+		int		palmSide;
+		Line	palmTempLine;
 
-		enum ActionType
-		{
-			None, Drawing, Moving, Scaling, Palm
-		}
-
-		ActionType	actionType;
 		uint		pointID;
-		Point		prevPoint;
-		int			zoomLevel;
-
+		Point		pointPrev;
+		
 		public CanvasEx()
 		{
 			this.InitializeComponent();
@@ -50,30 +55,28 @@ namespace PenTouch
 			palmBlock.Fill = new SolidColorBrush(Color.FromArgb(0x22, 0xff, 0, 0));
 
 			Clip = clipRect;
-			zoomLevel = 0;
 		}
 
 		private void OnLoaded(object sender, RoutedEventArgs e)
 		{
-			inkAttr = new InkDrawingAttributes();
-			inkAttr.IgnorePressure = false;
-			inkAttr.PenTip = PenTipShape.Circle;
-			inkAttr.Size = new Size(4, 4);
-			inkAttr.Color = Colors.Black;
-			ResetInkManager();
+			ManipulationMode = ManipulationModes.TranslateX | ManipulationModes.TranslateY | ManipulationModes.TranslateInertia;
+			onePointWait.Visibility = Visibility.Collapsed;
+			
+			penTouchTimer = new DispatcherTimer();
+			penTouchTimer.Interval = new TimeSpan(0, 0, 1);
+			penTouchTimer.Tick += PenTouchEnd;
 
-#if NETWORK
-			Network.OnNetworkRecieved += OnNetworkRecieved;
-			Network.connect();
-#endif
+			double val = -Math.PI / 2;
+			foreach (UIElement child in colorSelect.Children)
+			{
+				child.SetValue(Canvas.LeftProperty, Math.Cos(val) * 70);
+				child.SetValue(Canvas.TopProperty, Math.Sin(val) * 70);
+				val += Math.PI / 5;
+			}
 		}
 
-		private void ResetInkManager()
-		{
-			inkManager = new InkManager();
-			inkManager.SetDefaultDrawingAttributes(inkAttr);
-		}
-
+		#region Util
+		
 		private double Distance(Point p1, Point p2)
 		{
 			return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
@@ -105,192 +108,373 @@ namespace PenTouch
 			}
 
 			return oddNodes;
-		} 
-
-		private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
-		{
-			if (actionType != ActionType.None &&
-				actionType != ActionType.Palm)
-				return;
-
-			PointerPoint pt = e.GetCurrentPoint(canvas);
-			PointerDeviceType pointerDevType = e.Pointer.PointerDeviceType;
-
-			PointerPoint check = e.GetCurrentPoint(palmBlock);
-			if (PointInPalmBlock(check.Position))
-				return;
-		
-			if (actionType == ActionType.Palm)
-			{
-				pt = e.GetCurrentPoint(rootCanvas);
-				PointerPoint palmPt = e.GetCurrentPoint(palmBlock);
-
-				palmBlock.Points.Clear();
-				palmBlock.Points.Add(new Point(0, 0));
-				palmBlock.Points.Add(palmPt.Position);
-
-				palmTempLine = new Line();
-				palmTempLine.StrokeDashArray.Add(5);
-				palmTempLine.StrokeDashArray.Add(5);
-				palmTempLine.Stroke = new SolidColorBrush(Colors.Black);
-				rootCanvas.Children.Add(palmTempLine);
-
-				palmSide = 0;
-			}
-			else if (pointerDevType == PointerDeviceType.Pen ||
-					pointerDevType == PointerDeviceType.Mouse &&
-					pt.Properties.IsLeftButtonPressed)
-			{
-				LiveRenderBegin(pt);
-				inkManager.ProcessPointerDown(pt);
-
-				e.Handled = true;
-			}
-			else if (pointerDevType == PointerDeviceType.Touch ||
-					pt.Properties.IsRightButtonPressed)
-			{
-				pointID = pt.PointerId;
-				actionType = ActionType.Moving;
-				prevPoint = pt.Position;
-
-				e.Handled = true;
-			}
 		}
 
-		private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
+		#endregion
+
+		#region Action
+
+		enum ActionType
 		{
-			PointerPoint pt = e.GetCurrentPoint(canvas);
-
-			if (actionType == ActionType.Palm && palmTempLine != null)
-			{
-				pt = e.GetCurrentPoint(rootCanvas);
-				PointerPoint palmPt = e.GetCurrentPoint(palmBlock);
-
-				bool angle = Angle(new Point(0, 0), palmBlock.Points[palmBlock.Points.Count - 1]) > Angle(new Point(0, 0), palmPt.Position);
-
-				if (angle && palmSide >= 0)
-				{
-					if (palmSide == 0)
-					{
-						palmSide = 1;
-						palmBlock.Points.Insert(1, new Point(palmPt.Position.X, palmBlock.Margin.Top));
-					}
-
-					//CW
-					palmTempLine.X1 = pt.Position.X;
-					palmTempLine.Y1 = pt.Position.Y;
-					palmTempLine.X2 = palmBlock.Margin.Left;
-					palmTempLine.Y2 = pt.Position.Y;
-
-					palmBlock.Points.Add(palmPt.Position);
-				}
-				else if (!angle && palmSide <= 0)
-				{
-					if (palmSide == 0)
-					{
-						palmSide = -1;
-						palmBlock.Points.Insert(1, new Point(palmBlock.Margin.Left, palmPt.Position.Y));
-					}
-
-					//CCW
-					palmTempLine.X1 = pt.Position.X;
-					palmTempLine.Y1 = pt.Position.Y;
-					palmTempLine.X2 = pt.Position.X;
-					palmTempLine.Y2 = palmBlock.Margin.Top;
-
-					palmBlock.Points.Add(palmPt.Position);
-				}
-			}
-			else if (actionType == ActionType.Drawing && e.Pointer.PointerId == pointID)
-			{
-				LiveRenderUpdate(pt);
-				inkManager.ProcessPointerUpdate(pt);
-
-				e.Handled = true;
-			}
-			else if (actionType == ActionType.Moving && e.Pointer.PointerId == pointID)
-			{
-				translate.X += (pt.Position.X - prevPoint.X) * scale.ScaleX;
-				translate.Y += (pt.Position.Y - prevPoint.Y) * scale.ScaleY;
-				e.Handled = true;
-			}
+			None, Wait, Draw, Move, Palm, PenTouch
 		}
 
-		private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
+		ActionType actionType;
+
+		#region Palm Block
+
+		public void PalmBlockSelect()
 		{
-			PointerPoint pt = e.GetCurrentPoint(canvas);
-
-			if (actionType == ActionType.Palm)
-			{
-				if (palmTempLine != null && palmSide != 0)
-				{
-					pt = e.GetCurrentPoint(rootCanvas);
-					PointerPoint palmPt = e.GetCurrentPoint(palmBlock);
-
-					rootCanvas.Children.Remove(palmTempLine);
-					/*
-					if (palmSide > 0)
-						palmBlock.Points.Add(new Point(palmBlock.Margin.Left, palmPt.Position.Y));
-					if (palmSide < 0)
-						palmBlock.Points.Add(new Point(palmPt.Position.X, palmBlock.Margin.Top));
-					*/
-					palmBlock.Points.Add(new Point(palmTempLine.X2 - palmBlock.Margin.Left, palmTempLine.Y2 - palmBlock.Margin.Top));
-				}
-			
-				palmTempLine = null;
-				actionType = ActionType.None;
-
-				e.Handled = true;
-			}
-			else if (actionType == ActionType.Drawing && e.Pointer.PointerId == pointID)
-			{
-				inkManager.ProcessPointerUp(pt);
-				BezierRender();
-				actionType = ActionType.None;
-
-				e.Handled = true;
-			}
-			else if (actionType == ActionType.Moving && e.Pointer.PointerId == pointID)
-			{
-				actionType = ActionType.None;
-
-				e.Handled = true;
-			}
+			actionType = ActionType.Palm;
+			palmBlock.Points.Clear();
 		}
-		
-		private void LiveRenderBegin(PointerPoint pt)
+
+		//pt = e.GetCurrentPoint(palmBlock)
+		private bool PalmBlockStart(PointerPoint pt)
 		{
-			actionType = ActionType.Drawing;
+			if (actionType != ActionType.Palm)
+				return false;
+
+			palmBlock.Points.Clear();
+			palmBlock.Points.Add(new Point(0, 0));
+			palmBlock.Points.Add(pt.Position);
+
+			palmTempLine = new Line();
+			palmTempLine.StrokeDashArray.Add(5);
+			palmTempLine.StrokeDashArray.Add(5);
+			palmTempLine.Stroke = new SolidColorBrush(Colors.Black);
+			palmTempLine.Margin = palmBlock.Margin;
+			rootCanvas.Children.Add(palmTempLine);
 
 			pointID = pt.PointerId;
-			prevPoint = pt.Position;
+			pointPrev = pt.Position;
+			palmSide = 0;
+
+			return true;
+		}
+		
+		//pt = e.GetCurrentPoint(palmBlock)
+		private bool PalmBlockMove(PointerPoint pt)
+		{
+			if (actionType != ActionType.Palm ||
+				pointID != pt.PointerId ||
+				palmTempLine == null)
+				return false;
+
+			if (palmSide == 0 && Distance(pointPrev, pt.Position) < 5)
+				return true;
+
+			bool angle = Angle(new Point(0, 0), palmBlock.Points[palmBlock.Points.Count - 1]) > Angle(new Point(0, 0), pt.Position);
+
+			if (angle && palmSide >= 0)
+			{
+				if (palmSide == 0)
+				{
+					palmSide = 1;
+					palmBlock.Points.Insert(1, new Point(pt.Position.X, 0));
+				}
+
+				//CW
+				palmTempLine.X1 = pt.Position.X;
+				palmTempLine.Y1 = pt.Position.Y;
+				palmTempLine.X2 = 0;
+				palmTempLine.Y2 = pt.Position.Y;
+
+				palmBlock.Points.Add(pt.Position);
+			}
+			else if (!angle && palmSide <= 0)
+			{
+				if (palmSide == 0)
+				{
+					palmSide = -1;
+					palmBlock.Points.Insert(1, new Point(0, pt.Position.Y));
+				}
+
+				//CCW
+				palmTempLine.X1 = pt.Position.X;
+				palmTempLine.Y1 = pt.Position.Y;
+				palmTempLine.X2 = pt.Position.X;
+				palmTempLine.Y2 = 0;
+
+				palmBlock.Points.Add(pt.Position);
+			}
+
+			return true;
 		}
 
-		private void LiveRenderUpdate(PointerPoint pt)
+		//pt = e.GetCurrentPoint(palmBlock)
+		private bool PalmBlockEnd(PointerPoint pt)
 		{
+			if (actionType != ActionType.Palm ||
+				pointID != pt.PointerId ||
+				palmTempLine == null)
+				return false;
+			
+			if (palmSide != 0)
+			{
+				rootCanvas.Children.Remove(palmTempLine);
+				palmBlock.Points.Add(new Point(palmTempLine.X2, palmTempLine.Y2));
+			}
+
+			actionType = ActionType.None;
+			palmTempLine = null;
+			
+			return true;
+		}
+
+		#endregion
+
+		#region Drawing
+
+		//pt = e.GetCurruntPoint(canvas);
+		private bool DrawStart(PointerPoint pt)
+		{
+			if (actionType != ActionType.None && actionType != ActionType.PenTouch ||
+				pt.PointerDevice.PointerDeviceType != PointerDeviceType.Pen)
+				return false;
+
+			PenTouchEnd();
+
+			actionType = ActionType.Draw;
+
+			pointID = pt.PointerId;
+			pointPrev = pt.Position;
+
+			liveRender = new Canvas();
+			canvas.Children.Add(liveRender);
+
+			return true;
+		}
+
+		//pt = e.GetCurruntPoint(canvas);
+		private bool DrawMove(PointerPoint pt)
+		{
+			if (actionType != ActionType.Draw ||
+				pt.PointerDevice.PointerDeviceType != PointerDeviceType.Pen ||
+				pt.PointerId != pointID ||
+				liveRender == null)
+				return false;
+
 			Point nowPoint = pt.Position;
 
 			Line line = new Line()
 			{
-				X1 = prevPoint.X,
-				Y1 = prevPoint.Y,
+				X1 = pointPrev.X,
+				Y1 = pointPrev.Y,
 				X2 = nowPoint.X,
 				Y2 = nowPoint.Y,
-				StrokeThickness = pt.Properties.Pressure * inkAttr.Size.Width * 2,
-				Stroke = new SolidColorBrush(inkAttr.Color),
+				StrokeThickness = pt.Properties.Pressure * strokeThickness,
+				Stroke = strokeColor,
 				StrokeStartLineCap = PenLineCap.Round,
 				StrokeEndLineCap = PenLineCap.Round,
 				StrokeLineJoin = PenLineJoin.Round,
 			};
 
 			liveRender.Children.Add(line);
-			
-			prevPoint = nowPoint;
+
+			pointPrev = nowPoint;
+
+			return true;
 		}
 
-		private void LiveRenderEnd()
+		//pt = e.GetCurruntPoint(canvas);
+		private bool DrawEnd(PointerPoint pt)
 		{
-			liveRender.Children.Clear();
+			if (actionType != ActionType.Draw ||
+				pt.PointerDevice.PointerDeviceType != PointerDeviceType.Pen ||
+				pointID != pt.PointerId ||
+				liveRender == null)
+				return false;
+
+			actionType = ActionType.None;
+			liveRender = null;
+
+			return true;
+		}
+
+		#endregion Drawing
+
+		#region Waiting
+
+		DispatcherTimer penTouchTimer;
+
+		//pt = e.GetCurruntPoint(rootCanvas);
+		private bool WaitStart(PointerPoint pt)
+		{
+			if (actionType != ActionType.None && actionType != ActionType.PenTouch ||
+				pt.PointerDevice.PointerDeviceType != PointerDeviceType.Touch)
+				return false;
+
+			if (PointInPalmBlock(new Point(pt.Position.X - palmBlock.Margin.Left, pt.Position.Y - palmBlock.Margin.Top)))
+				return false;
+
+			actionType = ActionType.Wait;
+			pointID = pt.PointerId;
+			pointPrev = pt.Position;
+
+			onePointWait.Visibility = Visibility.Visible;
+			onePointWait.Opacity = 0.5;
+			onePointWait.Margin = new Thickness(pt.Position.X, pt.Position.Y, 0, 0);
+
+			colorSelect.Visibility = Visibility.Collapsed;
+			onePointButtons.Visibility = Visibility.Visible;
+
+			return true;
+		}
+
+		private bool MovingMove(Point delta)
+		{
+			if (actionType != ActionType.Wait && actionType != ActionType.Move)
+				return false;
+
+			if (actionType == ActionType.Wait)
+				if (Math.Sqrt(delta.X * delta.X + delta.Y * delta.Y) < 5)
+					return false;
+				else
+				{
+					PenTouchEnd();
+					actionType = ActionType.Move;
+				}
+
+			transform.X += delta.X;
+			transform.Y += delta.Y;
+
+			return true;
+		}
+		
+		//pt = e.GetCurruntPoint(rootCanvas);
+		private bool WaitEnd(PointerPoint pt)
+		{
+			if (actionType != ActionType.Wait ||
+				pt.PointerDevice.PointerDeviceType != PointerDeviceType.Touch ||
+				pt.PointerId != pointID)
+				return false;
+
+			actionType = ActionType.None;
+
+			onePointWait.Visibility = Visibility.Collapsed;
+			
+			return true;
+		}
+
+		//pt = e.GetCurruntPoint(rootCanvas);
+		private bool PenTouchStart(PointerPoint pt)
+		{
+			if (actionType != ActionType.Wait ||
+				pt.PointerDevice.PointerDeviceType != PointerDeviceType.Touch ||
+				pt.PointerId != pointID)
+				return false;
+
+			actionType = ActionType.PenTouch;
+
+			onePointWait.Opacity = 1;
+
+			penTouchTimer.Start();
+
+			return true;
+		}
+
+		private void PenTouchEnd(object sender = null, object e = null)
+		{
+			penTouchTimer.Stop();
+
+			if (actionType == ActionType.PenTouch)
+				actionType = ActionType.None;
+	
+			onePointWait.Visibility = Visibility.Collapsed;
+		}
+
+		private void OnColorSelectPointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (e.Pointer.PointerDeviceType != PointerDeviceType.Pen)
+				return;
+
+			e.Handled = true;
+
+			penTouchTimer.Stop();
+			onePointButtons.Visibility = Visibility.Collapsed;
+			colorSelect.Visibility = Visibility.Visible;
+			//penTouchType = PenTouchType.ColorSelect;
+		}
+
+		private void OnColorSelectPointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			if (e.Pointer.PointerDeviceType != PointerDeviceType.Pen)
+				return;
+
+			Shape s = sender as Shape;
+
+			if (s == null)
+				return;
+
+			e.Handled = true;
+
+			ChangePenColor(s.Fill);
+
+			PenTouchEnd();
+		}
+
+		#endregion Wating
+
+		#endregion Action
+
+		private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			e.Handled = true;
+
+			if (PalmBlockStart(e.GetCurrentPoint(palmBlock)))
+				return;
+
+			if (DrawStart(e.GetCurrentPoint(canvas)))
+				return;
+			
+			if (WaitStart(e.GetCurrentPoint(rootCanvas)))
+				return;
+		}
+
+		private void OnPointerMoved(object sender, PointerRoutedEventArgs e)
+		{
+			e.Handled = true;
+
+			if (PalmBlockMove(e.GetCurrentPoint(palmBlock)))
+				return;
+
+			if (DrawMove(e.GetCurrentPoint(canvas)))
+				return;
+		}
+
+		private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			e.Handled = true;
+
+			if (PalmBlockEnd(e.GetCurrentPoint(palmBlock)))
+				return;
+
+			if (DrawEnd(e.GetCurrentPoint(canvas)))
+				return;
+
+			if (WaitEnd(e.GetCurrentPoint(rootCanvas)))
+				return;
+			
+			if (e.Pointer.PointerDeviceType == PointerDeviceType.Pen)
+				PenTouchEnd();
+		}
+
+		private void OnPointerCanceled(object sender, PointerRoutedEventArgs e)
+		{
+			e.Handled = true;
+
+			if (PalmBlockEnd(e.GetCurrentPoint(palmBlock)))
+				return;
+
+			if (DrawEnd(e.GetCurrentPoint(canvas)))
+				return;
+
+			if (PenTouchStart(e.GetCurrentPoint(rootCanvas)))
+				return;
+
+			if (e.Pointer.PointerDeviceType == PointerDeviceType.Pen)
+				PenTouchEnd();
 		}
 
 		private void OnSizeChanged(object sender, SizeChangedEventArgs e)
@@ -303,135 +487,6 @@ namespace PenTouch
 			else
 				palmBlock.Visibility = Visibility.Visible;
 		}
-		
-		private void BezierRender()
-		{
-			foreach (var stroke in inkManager.GetStrokes())
-			{
-				var strokeCanvas = new Canvas();
-
-				var segs = stroke.GetRenderingSegments().GetEnumerator();
-				segs.MoveNext();
-
-				Point org = segs.Current.Position;
-
-				while (segs.MoveNext())
-				{
-					var path = CreateBezierPath(segs.Current.BezierControlPoint1, segs.Current.BezierControlPoint2, segs.Current.Position, org, segs.Current.Pressure);
-#if NETWORK
-					Network.sendData(segs.Current.BezierControlPoint1, segs.Current.BezierControlPoint2, segs.Current.Position, org, segs.Current.Pressure);
-#endif
-					strokeCanvas.Children.Add(path);
-					Windows.UI.Xaml.Controls.Canvas.SetZIndex(path, 1);
-
-					org = segs.Current.Position;
-				}
-
-				bezierRender.Children.Add(strokeCanvas);
-			}
-
-			ResetInkManager();
-			LiveRenderEnd();
-		}
-
-		private void OnNetworkRecieved(Point p1, Point p2, Point p3, Point p4, float pressure)
-		{
-			var path = CreateBezierPath(p1, p2, p3, p4, pressure);
-			bezierRender.Children.Add(path);
-		}
-		
-		public Windows.UI.Xaml.Shapes.Path CreateBezierPath(Point p1, Point p2, Point p3, Point org, float pressure)
-		{
-			var figure = new PathFigure();
-			figure.StartPoint = org;
-			
-			var bezier = new BezierSegment();
-			bezier.Point1 = p1;
-			bezier.Point2 = p2;
-			bezier.Point3 = p3;
-			figure.Segments.Add(bezier);
-
-			var geometry = new PathGeometry();
-			geometry.Figures.Add(figure);
-
-			var path = new Windows.UI.Xaml.Shapes.Path();
-			path.Stroke = new SolidColorBrush(inkAttr.Color);
-			path.StrokeThickness = pressure * inkAttr.Size.Width * 2;
-			path.StrokeStartLineCap = PenLineCap.Round;
-			path.StrokeEndLineCap = PenLineCap.Round;
-			path.StrokeLineJoin = PenLineJoin.Round;
-			path.Data = geometry;
-
-			return path;
-		}
-
-		private void OnPointerWheelChanged(object sender, PointerRoutedEventArgs e)
-		{
-			if (PointInPalmBlock(e.GetCurrentPoint(palmBlock).Position))
-				return;
-
-			PointerPoint pt = e.GetCurrentPoint(canvas);
-			Debug.WriteLine(pt.Properties.MouseWheelDelta);
-			Scaling(pt.Position, pt.Properties.MouseWheelDelta > 0);
-			e.Handled = true;
-		}
-
-		private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
-		{
-			if (PointInPalmBlock(new Point(e.Position.X - palmBlock.Margin.Left, e.Position.Y - palmBlock.Margin.Top)))
-				return;
-
-			Scaling(e.Position, e.Delta.Scale > 0);
-			e.Handled = true;
-		}
-
-		private void Scaling(Point p, bool zoomin)
-		{
-			if (actionType == ActionType.Scaling)
-				return;
-
-			double value = 1.5;
-			if (zoomin)
-			{
-				if (zoomLevel > 1)
-					return;
-
-				++zoomLevel;
-			}
-			else
-			{
-				if (zoomLevel < -1)
-					return;
-				
-				--zoomLevel;
-				value = 1 / value;
-			}
-
-			actionType = ActionType.Scaling;
-
-			Point t = new Point(p.X * scale.ScaleX + translate.X, p.Y * scale.ScaleX + translate.Y);
-
-			t.X -= t.X * (1 / value);
-			t.Y -= t.Y * (1 / value);
-			/*
-			scale.ScaleX *= value;
-			scale.ScaleY *= value;
-
-			translate.X -= t.X;
-			translate.Y -= t.Y;
-
-			translate.X *= value;
-			translate.Y *= value;
-			/*/
-			animTranslateX.To = (translate.X - t.X) * value;
-			animTranslateY.To = (translate.Y - t.Y) * value;
-
-			animScaleX.To = scale.ScaleX * value;
-			animScaleY.To = scale.ScaleY * value;
-			
-			storyboard.Begin();
-			//*/
-		}
 
 		private void OnAnimCompleted(object sender, object e)
 		{
@@ -440,46 +495,41 @@ namespace PenTouch
 
 		public void Clear()
 		{
-			liveRender.Children.Clear();
-			bezierRender.Children.Clear();
-
-			translate.X = 0;
-			translate.Y = 0;
-
-			scale.ScaleX = 1;
-			scale.ScaleY = 1;
-
-			ResetInkManager();
+			canvas.Children.Clear();
 		}
 
 		public void Undo()
 		{
-			if (bezierRender.Children.Count > 0)
-				bezierRender.Children.Remove(bezierRender.Children.Last());
+			if (canvas.Children.Count > 0)
+				canvas.Children.Remove(canvas.Children.Last());
 		}
 
-		public void ChangePenColor(Color color)
+		public void ChangePenColor(Brush color)
 		{
-			if (inkAttr == null)
-				return; 
-
-			inkAttr.Color = color;
-			ResetInkManager();
+			strokeColor = color;
 		}
 
 		public void ChangePenThickness(double value)
 		{
-			if (inkAttr == null)
-				return;
-
-			inkAttr.Size = new Size(value, value);
-			ResetInkManager();
+			strokeThickness = value;
 		}
 
-		public void StartPalmBlockSelect()
+		private void OnManipulationStarted(object sender, ManipulationStartedRoutedEventArgs e)
 		{
-			actionType = ActionType.Palm;
-			palmBlock.Points.Clear();
+			if (e.PointerDeviceType != PointerDeviceType.Touch ||
+				PointInPalmBlock(new Point(e.Position.X - palmBlock.Margin.Left, e.Position.Y - palmBlock.Margin.Top)))
+				e.Complete();
+		}
+
+		private void OnManipulationDelta(object sender, ManipulationDeltaRoutedEventArgs e)
+		{
+			MovingMove(e.Delta.Translation);
+		}
+
+		private void OnManipulationCompleted(object sender, ManipulationCompletedRoutedEventArgs e)
+		{
+			if (actionType == ActionType.Move)
+				actionType = ActionType.None;
 		}
 	}
 }

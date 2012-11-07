@@ -5,42 +5,37 @@
     xmlns:local="using:PenTouch"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d" Height="239" Width="379"                                                                                                                                                                                     Background="#FFFFFFFF"                                                                                     ManipulationMode="Scale" >
+    mc:Ignorable="d" Height="239" Width="379"                                                                                                                                                                                     Background="#FFFFFFFF" 
+	                                                                                                                                                                                  ManipulationMode="All" >
 	<Canvas x:Name="rootCanvas">
 		<Canvas x:Name="canvas">
 			<Canvas.RenderTransform>
-				<TransformGroup>
-					<ScaleTransform x:Name="scale" />
-					<TranslateTransform x:Name="translate" />
-				</TransformGroup>
+				<TranslateTransform x:Name="transform" />
 			</Canvas.RenderTransform>
-			<Canvas.Resources>
-				<Storyboard x:ConnectionId='2' x:Name="storyboard"                            >
-					<DoubleAnimation x:Name="animScaleX" Duration="0:0:0.3" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleX">
+			<!--Canvas.Resources>
+				<Storyboard x:Name="storyboard" Completed="OnAnimCompleted">
+					<DoubleAnimation x:Name="animScaleX" Duration="0:0:0.5" Storyboard.TargetName="transform" Storyboard.TargetProperty="ScaleX">
 						<DoubleAnimation.EasingFunction>
 							<ExponentialEase />
 						</DoubleAnimation.EasingFunction>
 					</DoubleAnimation>
-					<DoubleAnimation x:Name="animScaleY" Duration="0:0:0.3" Storyboard.TargetName="scale" Storyboard.TargetProperty="ScaleY">
+					<DoubleAnimation x:Name="animScaleY" Duration="0:0:0.5" Storyboard.TargetName="transform" Storyboard.TargetProperty="ScaleY">
 						<DoubleAnimation.EasingFunction>
 							<ExponentialEase />
 						</DoubleAnimation.EasingFunction>
 					</DoubleAnimation>
-					<DoubleAnimation x:Name="animTranslateX" Duration="0:0:0.3" Storyboard.TargetName="translate" Storyboard.TargetProperty="X">
+					<DoubleAnimation x:Name="animTranslateX" Duration="0:0:0.5" Storyboard.TargetName="transform" Storyboard.TargetProperty="TranslateX">
 						<DoubleAnimation.EasingFunction>
 							<ExponentialEase />
 						</DoubleAnimation.EasingFunction>
 					</DoubleAnimation>
-					<DoubleAnimation x:Name="animTranslateY" Duration="0:0:0.3" Storyboard.TargetName="translate" Storyboard.TargetProperty="Y">
+					<DoubleAnimation x:Name="animTranslateY" Duration="0:0:0.5" Storyboard.TargetName="transform" Storyboard.TargetProperty="TranslateY">
 						<DoubleAnimation.EasingFunction>
 							<ExponentialEase />
 						</DoubleAnimation.EasingFunction>
 					</DoubleAnimation>
 				</Storyboard>
-			</Canvas.Resources>
-			<Canvas x:Name="bezierRender" />
-			<Canvas x:Name="liveRender" />
-			<!--Image x:Name="image" HorizontalAlignment="Left" VerticalAlignment="Top" Source="Assets/Logo.png" Stretch="Fill" /-->
+			</Canvas.Resources-->
 		</Canvas>
 	</Canvas>
 </Grid>    

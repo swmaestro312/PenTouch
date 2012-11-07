@@ -59,7 +59,7 @@ namespace PenTouch
 			if (mainCanvas == null)
 				return;
 
-			mainCanvas.ChangePenColor((colorSelectButton.Foreground as SolidColorBrush).Color);
+			mainCanvas.ChangePenColor(colorSelectButton.Foreground);
 			colorSelectPopup.IsOpen = false;
 		}
 
@@ -78,7 +78,7 @@ namespace PenTouch
 
 		private void PalmBlockButtonClicked(object sender, RoutedEventArgs e)
 		{
-			mainCanvas.StartPalmBlockSelect();
+			mainCanvas.PalmBlockSelect();
 			bottomAppBar.IsOpen = false;
 		}
 	}
