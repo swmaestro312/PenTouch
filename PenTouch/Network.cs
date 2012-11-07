@@ -9,7 +9,6 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Storage;
 using Windows.Storage.Streams;
-using Windows.Foundation;
 using Windows.Networking;
 using Windows.Networking.Sockets;
 
