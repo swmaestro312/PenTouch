@@ -6,7 +6,8 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d" Height="239" Width="379"                                                                                                                                                                                                                         Background="#FFFFFFFF"
-		                                                                                                                                   >
+	                                                                                                                                    
+	IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False">
 	
 	<Grid.Resources>
 		<Style x:Name="PenTouchEllipseStyle" TargetType="Ellipse">
@@ -18,11 +19,7 @@
 	</Grid.Resources>
 	
 	<Canvas x:Name="rootCanvas">
-		<Canvas x:Name="canvas">
-			<Canvas.RenderTransform>
-				<TranslateTransform x:Name="transform" />
-			</Canvas.RenderTransform>
-		</Canvas>
+		<Canvas x:Name="canvas" />
 		<Canvas x:Name="onePointWait">
 			<Canvas x:Name="onePointButtons">
 				<Ellipse x:ConnectionId='8' Canvas.Left="70" Canvas.Top="-20" Style="{StaticResource PenTouchEllipseStyle}"                                              >

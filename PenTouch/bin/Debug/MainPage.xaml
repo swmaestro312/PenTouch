@@ -6,11 +6,11 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
-
-	<Grid Background="#FF970000">
+	
+	<Grid>
 		<local:CanvasEx x:Name="mainCanvas" Grid.Column="1" Margin="0" Width="Auto" Height="Auto"/>
 	</Grid>
-
+	
 	<Page.BottomAppBar>
 		<AppBar x:Name="bottomAppBar" Background="#77000000">
 			<Grid>
@@ -54,7 +54,7 @@
 					</Popup.ChildTransitions>
 					<Border Margin="225, -140, 0, 20"  Background="#77000000" BorderBrush="White" BorderThickness="2">
 						<Slider x:ConnectionId='6' x:Name="thickSelectSlider" Margin="0, 0, 0, 0" Width="Auto" Height="100" Orientation="Vertical" 
-                                Background="DarkGray" Foreground="Gray" BorderBrush="Black" BorderThickness="2" Maximum="40" Minimum="1" Value="4"                                 />
+                                Background="DarkGray" Foreground="Gray" BorderBrush="Black" BorderThickness="2" Maximum="10" Minimum="1" Value="4"                                 />
 					</Border>
 				</Popup>
 
