@@ -5,9 +5,9 @@
     xmlns:local="using:PenTouch"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d" Height="239" Width="379"                                                                                                                                                                                                                         Background="#FFFFFFFF"
+    mc:Ignorable="d" Height="239" Width="379"                                                                                                                                                                                                                         Background="White"
 	                                                                                                                                    
-	IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False" IsTapEnabled="False">
+	IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsTapEnabled="False">
 	
 	<Grid.Resources>
 		<Style x:Name="PenTouchEllipseStyle" TargetType="Ellipse">

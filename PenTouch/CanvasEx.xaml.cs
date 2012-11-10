@@ -27,8 +27,12 @@ using Windows.UI.Xaml.Shapes;
  * 터치 캔슬 펜 설정
  * isDoubleTapEnable = false
  * 
- * 12 11 08~09
+ * 12 11 08~10
  * 버티지 못하고 Direct X 적용 ㅜㅜ
+ * 그리고 개고생 ㅜㅜ
+ * 아무튼 지옥과도 같던 퍼포먼스의 활로를 뚫었습니다.
+ * 지금부터는 라인이 아니라 이미지로 그려지니 C#의 yeild 같은 문법을 활용해서 데이터를 일시에 넘겨받아야 할 듯
+ * Manipulation 을 사용할지도 생각이 필요..
  */
 
 namespace PenTouch
@@ -56,7 +60,7 @@ namespace PenTouch
 
 		SharpDX.DXGI.Device2 dxgiDevice;
 		
-		Canvas liveRender;
+		Panel liveRender;
 
 		public CanvasEx()
 		{
@@ -120,9 +124,6 @@ namespace PenTouch
 		private void RenderStart()
 		{
 			liveRender = new Canvas();
-			liveRender.Background = new SolidColorBrush(Colors.Red);
-			liveRender.Width = 300;
-			liveRender.Height = 300;
 			canvas.Children.Add(liveRender);
 		}
 
@@ -146,9 +147,58 @@ namespace PenTouch
 
 		private void RenderEnd()
 		{
-			var dxTarget = new SurfaceImageSource(
-				(int)(liveRender.Width * DisplayProperties.LogicalDpi / 96.0), 
-				(int)(liveRender.Height * DisplayProperties.LogicalDpi / 96.0));
+			if (liveRender.Children.Count <= 0)
+				return;
+
+			Line initLine = liveRender.Children[0] as Line;
+
+			Point
+				p1 = new Point
+				(
+					Math.Min(initLine.X1 - initLine.StrokeThickness / 2, initLine.X2 - initLine.StrokeThickness / 2),
+					Math.Min(initLine.Y1 - initLine.StrokeThickness / 2, initLine.Y2 - initLine.StrokeThickness / 2)
+				),
+				p2 = new Point
+				(
+					Math.Max(initLine.X1 + initLine.StrokeThickness / 2, initLine.X2 + initLine.StrokeThickness / 2),
+					Math.Max(initLine.Y1 + initLine.StrokeThickness / 2, initLine.Y2 + initLine.StrokeThickness / 2)
+				);
+
+			foreach (var child in liveRender.Children)
+			{
+				var line = child as Line;
+
+				if (line == null)
+					continue;
+
+				if (p1.X > line.X1 - line.StrokeThickness / 2)
+					p1.X = line.X1 - line.StrokeThickness / 2;
+				if (p1.X > line.X2 - line.StrokeThickness / 2)
+					p1.X = line.X2 - line.StrokeThickness / 2;
+
+				if (p2.X < line.X1 + line.StrokeThickness / 2)
+					p2.X = line.X1 + line.StrokeThickness / 2;
+				if (p2.X < line.X2 + line.StrokeThickness / 2)
+					p2.X = line.X2 + line.StrokeThickness / 2;
+
+				if (p1.Y > line.Y1 - line.StrokeThickness / 2)
+					p1.Y = line.Y1 - line.StrokeThickness / 2;
+				if (p1.Y > line.Y2 - line.StrokeThickness / 2)
+					p1.Y = line.Y2 - line.StrokeThickness / 2;
+
+				if (p2.Y < line.Y1 + line.StrokeThickness / 2)
+					p2.Y = line.Y1 + line.StrokeThickness / 2;
+				if (p2.Y < line.Y2 + line.StrokeThickness / 2)
+					p2.Y = line.Y2 + line.StrokeThickness / 2;
+			}
+
+			var bndRect = new Rect(p1, p2);
+
+			var dxTarget = new SurfaceImageSource
+			(
+				(int)(bndRect.Width * DisplayProperties.LogicalDpi / 96.0 + 1), 
+				(int)(bndRect.Height * DisplayProperties.LogicalDpi / 96.0 + 1)
+			);
 			
 			SharpDX.DXGI.ISurfaceImageSourceNative dxTargetNative = SharpDX.ComObject.As<SharpDX.DXGI.ISurfaceImageSourceNative>(dxTarget);
 			dxTargetNative.Device = d3dDevice.QueryInterface<SharpDX.DXGI.Device>();
@@ -158,8 +208,8 @@ namespace PenTouch
 			 */
 			SharpDX.DrawingPoint drawingPoint;
 			var surface = dxTargetNative.BeginDraw(new SharpDX.Rectangle(0, 0, 
-				(int)(liveRender.Width * DisplayProperties.LogicalDpi / 96.0), 
-				(int)(liveRender.Height * DisplayProperties.LogicalDpi / 96.0)),
+				(int)(bndRect.Width * DisplayProperties.LogicalDpi / 96.0 + 1), 
+				(int)(bndRect.Height * DisplayProperties.LogicalDpi / 96.0 + 1)),
 				out drawingPoint);
 			
 			var dxRenderTarget = new SharpDX.Direct2D1.RenderTarget(d2dFactory, surface, new SharpDX.Direct2D1.RenderTargetProperties()
@@ -190,10 +240,9 @@ namespace PenTouch
 				style.EndCap = SharpDX.Direct2D1.CapStyle.Round;
 				var stroke = new SharpDX.Direct2D1.StrokeStyle(d2dFactory, style);
 
-				dxRenderTarget.AntialiasMode = SharpDX.Direct2D1.AntialiasMode.PerPrimitive;
 				dxRenderTarget.DrawLine(
-					new SharpDX.DrawingPointF((float)line.X1, (float)line.Y1),
-					new SharpDX.DrawingPointF((float)line.X2, (float)line.Y2),
+					new SharpDX.DrawingPointF((float)(line.X1 - bndRect.Left), (float)(line.Y1 - bndRect.Top)),
+					new SharpDX.DrawingPointF((float)(line.X2 - bndRect.Left), (float)(line.Y2 - bndRect.Top)),
 					brush, (float)line.StrokeThickness, stroke);
 			}
 			
@@ -201,11 +250,14 @@ namespace PenTouch
 			dxTargetNative.EndDraw();
 
 			liveRender.Children.Clear();
-			var dxBrush = new ImageBrush();
-			dxBrush.ImageSource = dxTarget;
-			liveRender.Background = dxBrush;
-
+			canvas.Children.Remove(liveRender);
 			liveRender = null;
+
+			var dxImage = new Image();
+			dxImage.Source = dxTarget;
+			canvas.Children.Add(dxImage);
+			Canvas.SetLeft(dxImage, bndRect.X);
+			Canvas.SetTop(dxImage, bndRect.Y);
 		}
 
 		#region Util
