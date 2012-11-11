@@ -39,16 +39,21 @@ namespace PenTouch
 {
 	public sealed partial class CanvasEx : Grid
 	{
+		#region Field
+
 		RectangleGeometry clipRect = new RectangleGeometry();
 
 		double strokeThickness = 4;
 		Brush strokeColor = new SolidColorBrush(Colors.Black);
 
+		ActionType actionType;
+
 		Polygon palmBlock;
 		int		palmSide;
 		Line	palmTempLine;
 
-		uint	pointID;
+		bool	doubleTouch;
+		uint	pointID, point2ID;
 		Point	pointPrev;
 
 		SharpDX.Direct2D1.Device d2dDevice;
@@ -61,6 +66,10 @@ namespace PenTouch
 		SharpDX.DXGI.Device2 dxgiDevice;
 		
 		Panel liveRender;
+
+		#endregion Field
+
+		#region Initialize
 
 		public CanvasEx()
 		{
@@ -77,7 +86,7 @@ namespace PenTouch
 
 		private void OnLoaded(object sender, RoutedEventArgs e)
 		{
-			ManipulationMode = ManipulationModes.TranslateX | ManipulationModes.TranslateY | ManipulationModes.TranslateInertia;
+			ManipulationMode = ManipulationModes.TranslateX | ManipulationModes.TranslateY | ManipulationModes.TranslateInertia | ManipulationModes.Scale;
 			onePointWait.Visibility = Visibility.Collapsed;
 			
 			penTouchTimer = new DispatcherTimer();
@@ -116,152 +125,10 @@ namespace PenTouch
 			DisplayProperties.LogicalDpiChanged += LogicalDpiChanged;
 		}
 
-		void LogicalDpiChanged(object sender)
-		{
-			d2dContext.DotsPerInch = new SharpDX.DrawingSizeF(DisplayProperties.LogicalDpi, DisplayProperties.LogicalDpi);
-		}
-
-		private void RenderStart()
-		{
-			liveRender = new Canvas();
-			canvas.Children.Add(liveRender);
-		}
-
-		private void Render(Point p1, Point p2, double thick, Brush color)
-		{
-			Line l = new Line()
-			{
-				X1 = p1.X,
-				Y1 = p1.Y,
-				X2 = p2.X,
-				Y2 = p2.Y,
-				StrokeThickness = thick,
-				Stroke = color,
-				StrokeStartLineCap = PenLineCap.Round,
-				StrokeEndLineCap = PenLineCap.Round,
-				StrokeLineJoin = PenLineJoin.Round,
-			};
-
-			liveRender.Children.Add(l);
-		}
-
-		private void RenderEnd()
-		{
-			if (liveRender.Children.Count <= 0)
-				return;
-
-			Line initLine = liveRender.Children[0] as Line;
-
-			Point
-				p1 = new Point
-				(
-					Math.Min(initLine.X1 - initLine.StrokeThickness / 2, initLine.X2 - initLine.StrokeThickness / 2),
-					Math.Min(initLine.Y1 - initLine.StrokeThickness / 2, initLine.Y2 - initLine.StrokeThickness / 2)
-				),
-				p2 = new Point
-				(
-					Math.Max(initLine.X1 + initLine.StrokeThickness / 2, initLine.X2 + initLine.StrokeThickness / 2),
-					Math.Max(initLine.Y1 + initLine.StrokeThickness / 2, initLine.Y2 + initLine.StrokeThickness / 2)
-				);
-
-			foreach (var child in liveRender.Children)
-			{
-				var line = child as Line;
-
-				if (line == null)
-					continue;
-
-				if (p1.X > line.X1 - line.StrokeThickness / 2)
-					p1.X = line.X1 - line.StrokeThickness / 2;
-				if (p1.X > line.X2 - line.StrokeThickness / 2)
-					p1.X = line.X2 - line.StrokeThickness / 2;
-
-				if (p2.X < line.X1 + line.StrokeThickness / 2)
-					p2.X = line.X1 + line.StrokeThickness / 2;
-				if (p2.X < line.X2 + line.StrokeThickness / 2)
-					p2.X = line.X2 + line.StrokeThickness / 2;
-
-				if (p1.Y > line.Y1 - line.StrokeThickness / 2)
-					p1.Y = line.Y1 - line.StrokeThickness / 2;
-				if (p1.Y > line.Y2 - line.StrokeThickness / 2)
-					p1.Y = line.Y2 - line.StrokeThickness / 2;
-
-				if (p2.Y < line.Y1 + line.StrokeThickness / 2)
-					p2.Y = line.Y1 + line.StrokeThickness / 2;
-				if (p2.Y < line.Y2 + line.StrokeThickness / 2)
-					p2.Y = line.Y2 + line.StrokeThickness / 2;
-			}
-
-			var bndRect = new Rect(p1, p2);
-
-			var dxTarget = new SurfaceImageSource
-			(
-				(int)(bndRect.Width * DisplayProperties.LogicalDpi / 96.0 + 1), 
-				(int)(bndRect.Height * DisplayProperties.LogicalDpi / 96.0 + 1)
-			);
-			
-			SharpDX.DXGI.ISurfaceImageSourceNative dxTargetNative = SharpDX.ComObject.As<SharpDX.DXGI.ISurfaceImageSourceNative>(dxTarget);
-			dxTargetNative.Device = d3dDevice.QueryInterface<SharpDX.DXGI.Device>();
-
-			/*
-			 * Draw Logic
-			 */
-			SharpDX.DrawingPoint drawingPoint;
-			var surface = dxTargetNative.BeginDraw(new SharpDX.Rectangle(0, 0, 
-				(int)(bndRect.Width * DisplayProperties.LogicalDpi / 96.0 + 1), 
-				(int)(bndRect.Height * DisplayProperties.LogicalDpi / 96.0 + 1)),
-				out drawingPoint);
-			
-			var dxRenderTarget = new SharpDX.Direct2D1.RenderTarget(d2dFactory, surface, new SharpDX.Direct2D1.RenderTargetProperties()
-			{
-				DpiX = DisplayProperties.LogicalDpi,
-				DpiY = DisplayProperties.LogicalDpi,
-				PixelFormat = new SharpDX.Direct2D1.PixelFormat(SharpDX.DXGI.Format.B8G8R8A8_UNorm, SharpDX.Direct2D1.AlphaMode.Premultiplied),
-				Type = SharpDX.Direct2D1.RenderTargetType.Default,
-				Usage = SharpDX.Direct2D1.RenderTargetUsage.None
-			});
-			
-			dxRenderTarget.BeginDraw();
-			dxRenderTarget.Clear(SharpDX.Color.Transparent);
-			
-			foreach (var child in liveRender.Children)
-			{
-				var line = child as Line;
-
-				if (line == null)
-					continue;
-
-				Color c = (line.Stroke as SolidColorBrush).Color;
-				var brush = new SharpDX.Direct2D1.SolidColorBrush(dxRenderTarget, new SharpDX.Color(c.R, c.G, c.B, c.A));
-
-				var style = new SharpDX.Direct2D1.StrokeStyleProperties();
-				style.LineJoin = SharpDX.Direct2D1.LineJoin.Round;
-				style.StartCap = SharpDX.Direct2D1.CapStyle.Round;
-				style.EndCap = SharpDX.Direct2D1.CapStyle.Round;
-				var stroke = new SharpDX.Direct2D1.StrokeStyle(d2dFactory, style);
-
-				dxRenderTarget.DrawLine(
-					new SharpDX.DrawingPointF((float)(line.X1 - bndRect.Left), (float)(line.Y1 - bndRect.Top)),
-					new SharpDX.DrawingPointF((float)(line.X2 - bndRect.Left), (float)(line.Y2 - bndRect.Top)),
-					brush, (float)line.StrokeThickness, stroke);
-			}
-			
-			dxRenderTarget.EndDraw();
-			dxTargetNative.EndDraw();
-
-			liveRender.Children.Clear();
-			canvas.Children.Remove(liveRender);
-			liveRender = null;
-
-			var dxImage = new Image();
-			dxImage.Source = dxTarget;
-			canvas.Children.Add(dxImage);
-			Canvas.SetLeft(dxImage, bndRect.X);
-			Canvas.SetTop(dxImage, bndRect.Y);
-		}
+		#endregion Initialize
 
 		#region Util
-		
+
 		private double Distance(Point p1, Point p2)
 		{
 			return Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
@@ -303,8 +170,6 @@ namespace PenTouch
 		{
 			None, Wait, Draw, Move, Palm, PenTouch
 		}
-
-		ActionType actionType;
 
 		#region Palm Block
 
@@ -443,27 +308,24 @@ namespace PenTouch
 				liveRender == null)
 				return false;
 
-			if (Distance(pointPrev, pt.Position) >= 2)
+			int n = 1;
+			float pressure = pt.Properties.Pressure - pressurePrev;
+			Point pos = new Point(pt.Position.X - pointPrev.X, pt.Position.Y - pointPrev.Y);
+				
+			while (Math.Abs(pressure * strokeThickness / n) >= 0.5)
+				++n;
+
+			for (int i = 1; i <= n; ++i)
 			{
-				int n = 1;
-				float pressure = pt.Properties.Pressure - pressurePrev;
-				Point pos = new Point(pt.Position.X - pointPrev.X, pt.Position.Y - pointPrev.Y);
-				
-				while (Math.Abs(pressure / n) > 0.1 && Distance(pointPrev, new Point(pointPrev.X + pos.X / n, pointPrev.Y + pos.Y / n)) >= 2)
-					++n;
-
-				for (int i = 1; i <= n; ++i)
-				{
-					Render(
-						new Point(pointPrev.X + pos.X * (i - 1) / n, pointPrev.Y + pos.Y * (i - 1) / n),
-						new Point(pointPrev.X + pos.X * i / n, pointPrev.Y + pos.Y * i / n), 
-						(pressurePrev + pressure * i / n) * strokeThickness, strokeColor);
-				}
-				
-				pointPrev = pt.Position;
-				pressurePrev = pt.Properties.Pressure;
+				Render(
+					new Point(pointPrev.X + pos.X * (i - 1) / n, pointPrev.Y + pos.Y * (i - 1) / n),
+					new Point(pointPrev.X + pos.X * i / n, pointPrev.Y + pos.Y * i / n), 
+					(pressurePrev + pressure * i / n) * strokeThickness, strokeColor);
 			}
-
+				
+			pointPrev = pt.Position;
+			pressurePrev = pt.Properties.Pressure;
+		
 			return true;
 		}
 
@@ -482,22 +344,174 @@ namespace PenTouch
 			return true;
 		}
 
+		private void RenderStart()
+		{
+			liveRender = new Canvas();
+			canvas.Children.Add(liveRender);
+		}
+
+		private void Render(Point p1, Point p2, double thick, Brush color)
+		{
+			Line l = new Line()
+			{
+				X1 = p1.X,
+				Y1 = p1.Y,
+				X2 = p2.X,
+				Y2 = p2.Y,
+				StrokeThickness = thick,
+				Stroke = color,
+				StrokeStartLineCap = PenLineCap.Round,
+				StrokeEndLineCap = PenLineCap.Round,
+				StrokeLineJoin = PenLineJoin.Round,
+			};
+
+			liveRender.Children.Add(l);
+		}
+
+		private void RenderEnd()
+		{
+			if (liveRender.Children.Count <= 0)
+				return;
+
+			Line initLine = liveRender.Children[0] as Line;
+
+			Point
+				p1 = new Point
+				(
+					Math.Min(initLine.X1 - initLine.StrokeThickness / 2, initLine.X2 - initLine.StrokeThickness / 2),
+					Math.Min(initLine.Y1 - initLine.StrokeThickness / 2, initLine.Y2 - initLine.StrokeThickness / 2)
+				),
+				p2 = new Point
+				(
+					Math.Max(initLine.X1 + initLine.StrokeThickness / 2, initLine.X2 + initLine.StrokeThickness / 2),
+					Math.Max(initLine.Y1 + initLine.StrokeThickness / 2, initLine.Y2 + initLine.StrokeThickness / 2)
+				);
+
+			foreach (var child in liveRender.Children)
+			{
+				var line = child as Line;
+
+				if (line == null)
+					continue;
+
+				if (p1.X > line.X1 - line.StrokeThickness / 2)
+					p1.X = line.X1 - line.StrokeThickness / 2;
+				if (p1.X > line.X2 - line.StrokeThickness / 2)
+					p1.X = line.X2 - line.StrokeThickness / 2;
+
+				if (p2.X < line.X1 + line.StrokeThickness / 2)
+					p2.X = line.X1 + line.StrokeThickness / 2;
+				if (p2.X < line.X2 + line.StrokeThickness / 2)
+					p2.X = line.X2 + line.StrokeThickness / 2;
+
+				if (p1.Y > line.Y1 - line.StrokeThickness / 2)
+					p1.Y = line.Y1 - line.StrokeThickness / 2;
+				if (p1.Y > line.Y2 - line.StrokeThickness / 2)
+					p1.Y = line.Y2 - line.StrokeThickness / 2;
+
+				if (p2.Y < line.Y1 + line.StrokeThickness / 2)
+					p2.Y = line.Y1 + line.StrokeThickness / 2;
+				if (p2.Y < line.Y2 + line.StrokeThickness / 2)
+					p2.Y = line.Y2 + line.StrokeThickness / 2;
+			}
+
+			var bndRect = new Rect(p1, p2);
+
+			var dxTarget = new SurfaceImageSource
+			(
+				(int)(bndRect.Width * DisplayProperties.LogicalDpi / 96.0 + 1),
+				(int)(bndRect.Height * DisplayProperties.LogicalDpi / 96.0 + 1)
+			);
+
+			SharpDX.DXGI.ISurfaceImageSourceNative dxTargetNative = SharpDX.ComObject.As<SharpDX.DXGI.ISurfaceImageSourceNative>(dxTarget);
+			dxTargetNative.Device = d3dDevice.QueryInterface<SharpDX.DXGI.Device>();
+
+			/*
+			 * Draw Logic
+			 */
+			SharpDX.DrawingPoint drawingPoint;
+			var surface = dxTargetNative.BeginDraw(new SharpDX.Rectangle(0, 0,
+				(int)(bndRect.Width * DisplayProperties.LogicalDpi / 96.0 + 1),
+				(int)(bndRect.Height * DisplayProperties.LogicalDpi / 96.0 + 1)),
+				out drawingPoint);
+
+			var dxRenderTarget = new SharpDX.Direct2D1.RenderTarget(d2dFactory, surface, new SharpDX.Direct2D1.RenderTargetProperties()
+			{
+				DpiX = DisplayProperties.LogicalDpi,
+				DpiY = DisplayProperties.LogicalDpi,
+				PixelFormat = new SharpDX.Direct2D1.PixelFormat(SharpDX.DXGI.Format.B8G8R8A8_UNorm, SharpDX.Direct2D1.AlphaMode.Premultiplied),
+				Type = SharpDX.Direct2D1.RenderTargetType.Default,
+				Usage = SharpDX.Direct2D1.RenderTargetUsage.None
+			});
+
+			dxRenderTarget.BeginDraw();
+			dxRenderTarget.Clear(SharpDX.Color.Transparent);
+
+			foreach (var child in liveRender.Children)
+			{
+				var line = child as Line;
+
+				if (line == null)
+					continue;
+
+				Color c = (line.Stroke as SolidColorBrush).Color;
+				var brush = new SharpDX.Direct2D1.SolidColorBrush(dxRenderTarget, new SharpDX.Color(c.R, c.G, c.B, c.A));
+
+				var style = new SharpDX.Direct2D1.StrokeStyleProperties();
+				style.LineJoin = SharpDX.Direct2D1.LineJoin.Round;
+				style.StartCap = SharpDX.Direct2D1.CapStyle.Round;
+				style.EndCap = SharpDX.Direct2D1.CapStyle.Round;
+				var stroke = new SharpDX.Direct2D1.StrokeStyle(d2dFactory, style);
+
+				dxRenderTarget.DrawLine(
+					new SharpDX.DrawingPointF((float)(line.X1 - bndRect.Left), (float)(line.Y1 - bndRect.Top)),
+					new SharpDX.DrawingPointF((float)(line.X2 - bndRect.Left), (float)(line.Y2 - bndRect.Top)),
+					brush, (float)line.StrokeThickness, stroke);
+			}
+
+			dxRenderTarget.EndDraw();
+			dxTargetNative.EndDraw();
+
+			liveRender.Children.Clear();
+			canvas.Children.Remove(liveRender);
+			liveRender = null;
+
+			var dxImage = new Image();
+			dxImage.Source = dxTarget;
+			canvas.Children.Add(dxImage);
+			Canvas.SetLeft(dxImage, bndRect.X);
+			Canvas.SetTop(dxImage, bndRect.Y);
+		}
+
 		#endregion Drawing
 
-		#region Waiting
+		#region Waiting, Moving and Scaling
 
 		DispatcherTimer penTouchTimer;
 
 		//pt = e.GetCurruntPoint(rootCanvas);
 		private bool WaitStart(PointerPoint pt)
 		{
-			if (actionType != ActionType.None && actionType != ActionType.PenTouch ||
+			if (actionType != ActionType.None && actionType != ActionType.Wait && actionType != ActionType.PenTouch ||
 				pt.PointerDevice.PointerDeviceType != PointerDeviceType.Touch &&
-				(pt.PointerDevice.PointerDeviceType != PointerDeviceType.Mouse || !pt.Properties.IsRightButtonPressed))
+				(pt.PointerDevice.PointerDeviceType != PointerDeviceType.Mouse || !pt.Properties.IsRightButtonPressed) ||
+				doubleTouch)
 				return false;
 
 			if (PointInPalmBlock(new Point(pt.Position.X - palmBlock.Margin.Left, pt.Position.Y - palmBlock.Margin.Top)))
 				return false;
+
+			if (actionType == ActionType.Wait)
+			{
+				doubleTouch = true;
+				point2ID = pt.PointerId;
+
+				onePointWait.Visibility = Visibility.Collapsed;
+
+				return true;
+			}
+
+			doubleTouch = false;
 
 			actionType = ActionType.Wait;
 			pointID = pt.PointerId;
@@ -513,31 +527,72 @@ namespace PenTouch
 			return true;
 		}
 
-		private bool MovingMove(Point delta)
+		private bool MovingMove(ManipulationDeltaRoutedEventArgs e)
 		{
-			if (actionType != ActionType.Wait && actionType != ActionType.Move)
+			if (actionType != ActionType.Wait && actionType != ActionType.Move || doubleTouch)
 				return false;
-
+			
 			if (actionType == ActionType.Wait)
-				if (Math.Sqrt(delta.X * delta.X + delta.Y * delta.Y) < 5)
-					return false;
-				else
+				if (Math.Sqrt(Math.Pow(e.Cumulative.Translation.X, 2) + Math.Pow(e.Cumulative.Translation.Y, 2)) >= 5)
 				{
-					PenTouchEnd();
+					onePointButtons.Visibility = Visibility.Collapsed;
 					actionType = ActionType.Move;
 				}
 
-			Canvas.SetLeft(canvas, Canvas.GetLeft(canvas) + delta.X);
-			Canvas.SetTop(canvas, Canvas.GetTop(canvas) + delta.Y);
+			Point delta = e.Delta.Translation;
+
+			translate.X += delta.X;
+			translate.Y += delta.Y;
 		
+			return true;
+		}
+
+		private bool ScalingMove(ManipulationDeltaRoutedEventArgs e)
+		{
+			if (!doubleTouch)
+				return false;
+
+			if (actionType == ActionType.Wait)
+				if (Math.Abs(e.Cumulative.Scale) >= 0.1)
+				{
+					actionType = ActionType.Move;
+				}
+
+			Point t = e.Position;
+			float delta = e.Delta.Scale;
+
+			t.X -= t.X * (1 / delta);
+			t.Y -= t.Y * (1 / delta);
+			
+			translate.X -= t.X;
+			translate.Y -= t.Y;
+
+			translate.X *= delta;
+			translate.Y *= delta;
+
+			scale.ScaleX *= delta;
+			scale.ScaleY *= delta;
+
 			return true;
 		}
 		
 		//pt = e.GetCurruntPoint(rootCanvas);
 		private bool WaitEnd(PointerPoint pt)
 		{
-			if (actionType != ActionType.Wait ||
-				pt.PointerId != pointID)
+			if (actionType != ActionType.Wait)
+				return false;
+
+			if (doubleTouch)
+			{
+				doubleTouch = false;
+
+				if (point2ID == pt.PointerId)
+					pointID = pt.PointerId;
+
+				return true;
+			}
+
+			if (pt.PointerId != pointID)
 				return false;
 
 			actionType = ActionType.None;
@@ -569,7 +624,8 @@ namespace PenTouch
 
 			if (actionType == ActionType.PenTouch)
 				actionType = ActionType.None;
-	
+
+			doubleTouch = false;
 			onePointWait.Visibility = Visibility.Collapsed;
 		}
 
@@ -603,7 +659,7 @@ namespace PenTouch
 			PenTouchEnd();
 		}
 
-		#endregion Wating
+		#endregion Wating, Moving and Scaling
 
 		#endregion Action
 
@@ -682,7 +738,8 @@ namespace PenTouch
 		{
 			e.Handled = true;
 			
-			MovingMove(e.Delta.Translation);
+			MovingMove(e);
+			ScalingMove(e);
 		}
 
 		private void OnManipulationCompleted(object sender, ManipulationCompletedRoutedEventArgs e)
@@ -690,7 +747,11 @@ namespace PenTouch
 			e.Handled = true;
 
 			if (actionType == ActionType.Move)
+			{
+				doubleTouch = false;
+
 				actionType = ActionType.None;
+			}
 		}
 
 		private void OnSizeChanged(object sender, SizeChangedEventArgs e)
@@ -707,6 +768,11 @@ namespace PenTouch
 		private void OnAnimCompleted(object sender, object e)
 		{
 			actionType = ActionType.None;
+		}
+
+		void LogicalDpiChanged(object sender)
+		{
+			d2dContext.DotsPerInch = new SharpDX.DrawingSizeF(DisplayProperties.LogicalDpi, DisplayProperties.LogicalDpi);
 		}
 
 		public void Clear()

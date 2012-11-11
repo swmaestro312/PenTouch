@@ -19,7 +19,14 @@
 	</Grid.Resources>
 	
 	<Canvas x:Name="rootCanvas">
-		<Canvas x:Name="canvas" />
+		<Canvas x:Name="canvas">
+			<Canvas.RenderTransform>
+				<TransformGroup>
+					<ScaleTransform x:Name="scale" />
+					<TranslateTransform x:Name="translate" />
+				</TransformGroup>
+			</Canvas.RenderTransform>
+		</Canvas>
 		<Canvas x:Name="onePointWait">
 			<Canvas x:Name="onePointButtons">
 				<Ellipse Canvas.Left="70" Canvas.Top="-20" Style="{StaticResource PenTouchEllipseStyle}" PointerPressed="OnColorSelectPointerPressed" >
