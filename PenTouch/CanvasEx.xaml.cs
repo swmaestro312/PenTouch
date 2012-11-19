@@ -111,10 +111,6 @@ namespace PenTouch
 			
 			onePointWait.Visibility = Visibility.Collapsed;
 			twoPointWait.Visibility = Visibility.Collapsed;
-			
-			penTouchTimer = new DispatcherTimer();
-			penTouchTimer.Interval = new TimeSpan(0, 0, 1);
-			penTouchTimer.Tick += PenTouchEnd;
 
 			double val = -Math.PI / 2;
 			foreach (UIElement child in colorSelect.Children)
@@ -511,8 +507,6 @@ namespace PenTouch
 
 		#region Waiting, Moving and Scaling
 
-		DispatcherTimer penTouchTimer;
-
 		//pt = e.GetCurruntPoint(rootCanvas);
 		private bool WaitStart(PointerPoint pt)
 		{
@@ -660,15 +654,11 @@ namespace PenTouch
 			onePointWait.Opacity = 1;
 			twoPointWait.Opacity = 1;
 
-			penTouchTimer.Start();
-
 			return true;
 		}
 
 		private void PenTouchEnd(object sender = null, object e = null)
 		{
-			penTouchTimer.Stop();
-
 			if (actionType == ActionType.PenTouch)
 				actionType = ActionType.None;
 
@@ -685,7 +675,6 @@ namespace PenTouch
 
 			e.Handled = true;
 
-			penTouchTimer.Stop();
 			onePointButtons.Visibility = Visibility.Collapsed;
 			colorSelect.Visibility = Visibility.Visible;
 			//penTouchType = PenTouchType.ColorSelect;
@@ -714,8 +703,6 @@ namespace PenTouch
 				return;
 
 			e.Handled = true;
-
-			penTouchTimer.Stop();
 
 			onePointButtons.Visibility = Visibility.Collapsed;
 			drawShape.Visibility = Visibility.Visible;
@@ -796,8 +783,6 @@ namespace PenTouch
 				return;
 
 			e.Handled = true;
-
-			penTouchTimer.Stop();
 
 			strokeSelect.CapturePointer(e.Pointer);
 			pointPrev = e.GetCurrentPoint(rootCanvas).Position;
