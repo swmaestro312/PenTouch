@@ -5,10 +5,10 @@
     xmlns:local="using:PenTouch"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d" Height="239" Width="379"                                                                                                                                                                                                                         Background="White"
+    mc:Ignorable="d" Height="239" Width="379"                                                                                                                                                                                                                        
 	                                                                                                                                    
-	IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsTapEnabled="False">
-	
+	IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsTapEnabled="False" Background="White">
+
 	<Grid.Resources>
 		<Style x:Name="PenTouchEllipseStyle" TargetType="Ellipse">
 			<Setter Property="Width" Value="40" />
@@ -18,15 +18,20 @@
 		</Style>	
 	</Grid.Resources>
 	
+	<local:TileBackground HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ImageSource="Assets/bgline.JPG" />
+
 	<Canvas x:Name="rootCanvas">
 		<Canvas x:Name="canvas">
 			<Canvas.RenderTransform>
-				<CompositeTransform x:Name="transform" />
+				<TransformGroup>
+					<ScaleTransform x:Name="scale" />
+					<TranslateTransform x:Name="translate" />
+				</TransformGroup>
 			</Canvas.RenderTransform>
 		</Canvas>
 		<Canvas x:Name="onePointWait">
 			<Canvas x:Name="onePointButtons">
-				<Ellipse x:ConnectionId='8' Canvas.Left="70" Canvas.Top="-20" Style="{StaticResource PenTouchEllipseStyle}"                                              >
+				<Ellipse x:ConnectionId='9' Canvas.Left="70" Canvas.Top="-20" Style="{StaticResource PenTouchEllipseStyle}"                                              >
 					<Ellipse.Fill>
 						<LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
 							<GradientStop Color="Red"/>
@@ -39,14 +44,19 @@
 				</Ellipse>
 			</Canvas>
 			<Canvas x:Name="colorSelect" Canvas.Left="70" Canvas.Top="-20">
-				<Ellipse x:ConnectionId='2' Fill="Red"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='3' Fill="Blue"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='4' Fill="Yellow"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='5' Fill="Lime"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='6' Fill="White"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='7' Fill="Black"                                                Stroke="White" Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='3' Fill="Red"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='4' Fill="Blue"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='5' Fill="Yellow"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='6' Fill="Lime"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='7' Fill="White"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='8' Fill="Black"                                                Stroke="White" Style="{StaticResource PenTouchEllipseStyle}" />
+			</Canvas>
+		</Canvas>
+		<Canvas x:Name="twoPointWait">
+			<Canvas x:Name="twoPointButtons">
+				<Ellipse x:ConnectionId='2' x:Name="strokeSelect" Canvas.Left="-20" Canvas.Top="-20" Style="{StaticResource PenTouchEllipseStyle}" Fill="White"                                                                                                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
 			</Canvas>
 		</Canvas>
 	</Canvas>
-</Grid>    
+</Grid>
 

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Collections.Generic;
 
 using Windows.Devices.Input;
 using Windows.Foundation;
@@ -27,12 +28,14 @@ using Windows.UI.Xaml.Shapes;
  * 터치 캔슬 펜 설정
  * isDoubleTapEnable = false
  * 
- * 12 11 08~10
+ * 12 11 08~11
  * 버티지 못하고 Direct X 적용 ㅜㅜ
  * 그리고 개고생 ㅜㅜ
  * 아무튼 지옥과도 같던 퍼포먼스의 활로를 뚫었습니다.
- * 지금부터는 라인이 아니라 이미지로 그려지니 C#의 yeild 같은 문법을 활용해서 데이터를 일시에 넘겨받아야 할 듯
+ * 지금부터는 베지어가 아니라 라인으로 그려짐
  * Manipulation 을 사용할지도 생각이 필요..
+ * 실시간 렌더링은 부하를 충분히 견디지 못함
+ * 일정 라인수가 되거나 일정 크기를 넘겨버리면 렌더링하는 알고리즘이 필요할듯.
  */
 
 namespace PenTouch
@@ -43,8 +46,18 @@ namespace PenTouch
 
 		RectangleGeometry clipRect = new RectangleGeometry();
 
-		double strokeThickness = 4;
-		Brush strokeColor = new SolidColorBrush(Colors.Black);
+		Slider strokeThickness;
+		Button strokeColor;
+
+		private double Thickness
+		{
+			get { return strokeThickness.Value; }
+		}
+
+		private Brush Color
+		{
+			get { return strokeColor.Foreground ?? new SolidColorBrush(Colors.Black); }
+		}
 
 		ActionType actionType;
 
@@ -87,7 +100,11 @@ namespace PenTouch
 		private void OnLoaded(object sender, RoutedEventArgs e)
 		{
 			ManipulationMode = ManipulationModes.TranslateX | ManipulationModes.TranslateY | ManipulationModes.TranslateInertia | ManipulationModes.Scale;
+
+			tileBackground.ImageSource = "Assets/bgline.JPG";
+			
 			onePointWait.Visibility = Visibility.Collapsed;
+			twoPointWait.Visibility = Visibility.Collapsed;
 			
 			penTouchTimer = new DispatcherTimer();
 			penTouchTimer.Interval = new TimeSpan(0, 0, 1);
@@ -312,7 +329,7 @@ namespace PenTouch
 			float pressure = pt.Properties.Pressure - pressurePrev;
 			Point pos = new Point(pt.Position.X - pointPrev.X, pt.Position.Y - pointPrev.Y);
 				
-			while (Math.Abs(pressure * strokeThickness / n) >= 0.5)
+			while (Math.Abs(pressure * Thickness / n) >= 0.5)
 				++n;
 
 			for (int i = 1; i <= n; ++i)
@@ -320,7 +337,7 @@ namespace PenTouch
 				Render(
 					new Point(pointPrev.X + pos.X * (i - 1) / n, pointPrev.Y + pos.Y * (i - 1) / n),
 					new Point(pointPrev.X + pos.X * i / n, pointPrev.Y + pos.Y * i / n), 
-					(pressurePrev + pressure * i / n) * strokeThickness, strokeColor);
+					(pressurePrev + pressure * i / n) * Thickness, Color);
 			}
 				
 			pointPrev = pt.Position;
@@ -368,12 +385,12 @@ namespace PenTouch
 			liveRender.Children.Add(l);
 		}
 
-		private void RenderEnd()
+		private void Render(List<UIElement> points)
 		{
-			if (liveRender.Children.Count <= 0)
+			if (points.Count <= 0)
 				return;
 
-			Line initLine = liveRender.Children[0] as Line;
+			Line initLine = points[0] as Line;
 
 			Point
 				p1 = new Point
@@ -387,7 +404,7 @@ namespace PenTouch
 					Math.Max(initLine.Y1 + initLine.StrokeThickness / 2, initLine.Y2 + initLine.StrokeThickness / 2)
 				);
 
-			foreach (var child in liveRender.Children)
+			foreach (var child in points)
 			{
 				var line = child as Line;
 
@@ -447,7 +464,7 @@ namespace PenTouch
 			dxRenderTarget.BeginDraw();
 			dxRenderTarget.Clear(SharpDX.Color.Transparent);
 
-			foreach (var child in liveRender.Children)
+			foreach (var child in points)
 			{
 				var line = child as Line;
 
@@ -472,15 +489,20 @@ namespace PenTouch
 			dxRenderTarget.EndDraw();
 			dxTargetNative.EndDraw();
 
-			liveRender.Children.Clear();
-			canvas.Children.Remove(liveRender);
-			liveRender = null;
-
 			var dxImage = new Image();
 			dxImage.Source = dxTarget;
 			canvas.Children.Add(dxImage);
 			Canvas.SetLeft(dxImage, bndRect.X);
 			Canvas.SetTop(dxImage, bndRect.Y);
+		}
+
+		private void RenderEnd()
+		{
+			Render(liveRender.Children.ToList());
+
+			liveRender.Children.Clear();
+			canvas.Children.Remove(liveRender);
+			liveRender = null;
 		}
 
 		#endregion Drawing
@@ -504,38 +526,52 @@ namespace PenTouch
 			if (actionType == ActionType.Wait)
 			{
 				doubleTouch = true;
+				
 				point2ID = pt.PointerId;
 
+				twoPointWait.Visibility = Visibility.Visible;
 				onePointWait.Visibility = Visibility.Collapsed;
+				twoPointWait.Opacity = 0.5;
+				twoPointWait.Margin = new Thickness((pointPrev.X + pt.Position.X) / 2, (pointPrev.Y + pt.Position.Y) / 2, 0, 0);
+
+				strokeSelect.Width = strokeSelect.Height = 40;
+				Canvas.SetLeft(strokeSelect, -strokeSelect.Width / 2);
+				Canvas.SetTop(strokeSelect, -strokeSelect.Height / 2); 
+				twoPointButtons.Visibility = Visibility.Visible;
 
 				return true;
 			}
+			else
+			{
+				doubleTouch = false;
 
-			doubleTouch = false;
+				actionType = ActionType.Wait;
+				pointID = pt.PointerId;
+				pointPrev = pt.Position;
 
-			actionType = ActionType.Wait;
-			pointID = pt.PointerId;
-			pointPrev = pt.Position;
+				twoPointWait.Visibility = Visibility.Collapsed;
+				onePointWait.Visibility = Visibility.Visible;
+				onePointWait.Opacity = 0.5;
+				onePointWait.Margin = new Thickness(pt.Position.X, pt.Position.Y, 0, 0);
 
-			onePointWait.Visibility = Visibility.Visible;
-			onePointWait.Opacity = 0.5;
-			onePointWait.Margin = new Thickness(pt.Position.X, pt.Position.Y, 0, 0);
-
-			colorSelect.Visibility = Visibility.Collapsed;
-			onePointButtons.Visibility = Visibility.Visible;
+				colorSelect.Visibility = Visibility.Collapsed;
+				drawShape.Visibility = Visibility.Collapsed;
+				onePointButtons.Visibility = Visibility.Visible;
+			}
 
 			return true;
 		}
 
 		private bool MovingMove(ManipulationDeltaRoutedEventArgs e)
 		{
-			if (actionType != ActionType.Wait && actionType != ActionType.Move || doubleTouch)
+			if (actionType != ActionType.Wait && actionType != ActionType.Move)
 				return false;
 			
 			if (actionType == ActionType.Wait)
 				if (Math.Sqrt(Math.Pow(e.Cumulative.Translation.X, 2) + Math.Pow(e.Cumulative.Translation.Y, 2)) >= 5)
 				{
-					onePointButtons.Visibility = Visibility.Collapsed;
+					onePointWait.Visibility = Visibility.Collapsed;
+					twoPointWait.Visibility = Visibility.Collapsed;
 					actionType = ActionType.Move;
 				}
 
@@ -553,13 +589,20 @@ namespace PenTouch
 				return false;
 
 			if (actionType == ActionType.Wait)
-				if (Math.Abs(e.Cumulative.Scale) >= 0.1)
+				if (Math.Abs(e.Cumulative.Scale - 1) >= 0.1)
 				{
+					onePointWait.Visibility = Visibility.Collapsed;
+					twoPointWait.Visibility = Visibility.Collapsed;
 					actionType = ActionType.Move;
 				}
 
 			Point t = e.Position;
-			float delta = e.Delta.Scale;
+			double delta = e.Delta.Scale;
+
+			if (delta * scale.ScaleX > 1.5)
+				delta = 1.5 / scale.ScaleX;
+			if (delta * scale.ScaleX < 1)
+				delta = 1 / scale.ScaleX;
 
 			t.X -= t.X * (1 / delta);
 			t.Y -= t.Y * (1 / delta);
@@ -598,6 +641,7 @@ namespace PenTouch
 			actionType = ActionType.None;
 
 			onePointWait.Visibility = Visibility.Collapsed;
+			twoPointWait.Visibility = Visibility.Collapsed;
 			
 			return true;
 		}
@@ -612,6 +656,7 @@ namespace PenTouch
 			actionType = ActionType.PenTouch;
 
 			onePointWait.Opacity = 1;
+			twoPointWait.Opacity = 1;
 
 			penTouchTimer.Start();
 
@@ -626,6 +671,8 @@ namespace PenTouch
 				actionType = ActionType.None;
 
 			doubleTouch = false;
+
+			twoPointWait.Visibility = Visibility.Collapsed;
 			onePointWait.Visibility = Visibility.Collapsed;
 		}
 
@@ -654,7 +701,131 @@ namespace PenTouch
 
 			e.Handled = true;
 
-			ChangePenColor(s.Fill);
+			strokeColor.Foreground = s.Fill;
+
+			PenTouchEnd();
+		}
+
+		private void OnDrawShapePointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (e.Pointer.PointerDeviceType != PointerDeviceType.Pen)
+				return;
+
+			e.Handled = true;
+
+			penTouchTimer.Stop();
+
+			onePointButtons.Visibility = Visibility.Collapsed;
+			drawShape.Visibility = Visibility.Visible;
+
+			drawShape.CapturePointer(e.Pointer);
+
+			Line line = new Line()
+			{
+				X1 = 0,
+				Y1 = 0,
+				X2 = 0,
+				Y2 = 0,
+				StrokeThickness = Thickness * 0.5 * scale.ScaleX,
+				Stroke = Color,
+				StrokeStartLineCap = PenLineCap.Round,
+				StrokeEndLineCap = PenLineCap.Round,
+				StrokeLineJoin = PenLineJoin.Round,
+				StrokeDashArray = { 2, 2 },
+			};
+
+			drawShape.Children.Add(line);
+		}
+
+		private void OnDrawShapePointerMoved(object sender, PointerRoutedEventArgs e)
+		{
+			e.Handled = true;
+
+			if (drawShape.PointerCaptures != null && e.Pointer.IsInContact && drawShape.Children.Count > 0)
+			{
+				var shape = drawShape.Children.Last();
+
+				if (shape is Line)
+				{
+					var line = shape as Line;
+					var pt = e.GetCurrentPoint(drawShape);
+
+					line.X2 = pt.Position.X;
+					line.Y2 = pt.Position.Y;
+				}
+			}
+		}
+
+		private void OnDrawShapePointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			e.Handled = true;
+
+			List<UIElement> list = new List<UIElement>();
+
+			foreach (var child in drawShape.Children)
+				if (child is Line)
+				{
+					Point point;
+					var line = child as Line;
+
+					point = canvas.RenderTransform.Inverse.TransformPoint(drawShape.RenderTransform.TransformPoint(new Point(line.X1, line.Y1)));
+					line.X1 = point.X + (onePointWait.Margin.Left + Canvas.GetLeft(drawShape)) / scale.ScaleX;
+					line.Y1 = point.Y + (onePointWait.Margin.Top + Canvas.GetTop(drawShape)) / scale.ScaleY;
+
+					point = canvas.RenderTransform.Inverse.TransformPoint(drawShape.RenderTransform.TransformPoint(new Point(line.X2, line.Y2)));
+					line.X2 = point.X + (onePointWait.Margin.Left + Canvas.GetLeft(drawShape)) / scale.ScaleX;
+					line.Y2 = point.Y + (onePointWait.Margin.Top + Canvas.GetTop(drawShape)) / scale.ScaleY;
+
+					list.Add(line);
+				}
+
+			Render(list);
+
+			drawShape.Children.Clear();
+			drawShape.ReleasePointerCaptures();
+
+			PenTouchEnd();
+		}
+
+		private void OnThicknessSelectPointerPressed(object sender, PointerRoutedEventArgs e)
+		{
+			if (e.Pointer.PointerDeviceType != PointerDeviceType.Pen)
+				return;
+
+			e.Handled = true;
+
+			penTouchTimer.Stop();
+
+			strokeSelect.CapturePointer(e.Pointer);
+			pointPrev = e.GetCurrentPoint(rootCanvas).Position;
+		}
+
+		private void OnThicknessSelectPointerMoved(object sender, PointerRoutedEventArgs e)
+		{
+			e.Handled = true;
+
+			if (strokeSelect.PointerCaptures != null && e.Pointer.IsInContact)
+			{
+				double value = Thickness + (e.GetCurrentPoint(rootCanvas).Position.Y - pointPrev.Y) / 10;
+
+				if (value > 40)
+					value = 40;
+				if (value < 1)
+					value = 1;
+
+				strokeSelect.Width = strokeSelect.Height = value;
+				Canvas.SetLeft(strokeSelect, -strokeSelect.Width / 2);
+				Canvas.SetTop(strokeSelect, -strokeSelect.Height / 2);
+			}
+		}
+
+		private void OnThicknessSelectPointerReleased(object sender, PointerRoutedEventArgs e)
+		{
+			e.Handled = true;
+
+			strokeSelect.ReleasePointerCaptures();
+
+			strokeThickness.Value = (int)strokeSelect.Width;
 
 			PenTouchEnd();
 		}
@@ -749,7 +920,6 @@ namespace PenTouch
 			if (actionType == ActionType.Move)
 			{
 				doubleTouch = false;
-
 				actionType = ActionType.None;
 			}
 		}
@@ -763,11 +933,6 @@ namespace PenTouch
 				palmBlock.Visibility = Visibility.Collapsed;
 			else
 				palmBlock.Visibility = Visibility.Visible;
-		}
-
-		private void OnAnimCompleted(object sender, object e)
-		{
-			actionType = ActionType.None;
 		}
 
 		void LogicalDpiChanged(object sender)
@@ -786,12 +951,12 @@ namespace PenTouch
 				canvas.Children.Remove(canvas.Children.Last());
 		}
 
-		public void ChangePenColor(Brush color)
+		public void SetPenColor(Button value)
 		{
-			strokeColor = color;
+			strokeColor = value;
 		}
 
-		public void ChangePenThickness(double value)
+		public void SetPenThickness(Slider value)
 		{
 			strokeThickness = value;
 		}

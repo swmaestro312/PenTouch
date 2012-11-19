@@ -5,10 +5,10 @@
     xmlns:local="using:PenTouch"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d" Height="239" Width="379" PointerMoved="OnPointerMoved" PointerPressed="OnPointerPressed" PointerReleased="OnPointerReleased" PointerExited="OnPointerReleased" PointerCanceled="OnPointerCanceled" Loaded="OnLoaded" SizeChanged="OnSizeChanged" Background="White"
+    mc:Ignorable="d" Height="239" Width="379" PointerMoved="OnPointerMoved" PointerPressed="OnPointerPressed" PointerReleased="OnPointerReleased" PointerExited="OnPointerReleased" PointerCanceled="OnPointerCanceled" Loaded="OnLoaded" SizeChanged="OnSizeChanged"
 	ManipulationStarted="OnManipulationStarted" ManipulationDelta="OnManipulationDelta" ManipulationCompleted="OnManipulationCompleted" 
-	IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsTapEnabled="False">
-	
+	IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsTapEnabled="False" Background="White">
+
 	<Grid.Resources>
 		<Style x:Name="PenTouchEllipseStyle" TargetType="Ellipse">
 			<Setter Property="Width" Value="40" />
@@ -18,6 +18,8 @@
 		</Style>	
 	</Grid.Resources>
 	
+	<local:TileBackground x:Name="tileBackground" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+
 	<Canvas x:Name="rootCanvas">
 		<Canvas x:Name="canvas">
 			<Canvas.RenderTransform>
@@ -29,7 +31,7 @@
 		</Canvas>
 		<Canvas x:Name="onePointWait">
 			<Canvas x:Name="onePointButtons">
-				<Ellipse Canvas.Left="70" Canvas.Top="-20" Style="{StaticResource PenTouchEllipseStyle}" PointerPressed="OnColorSelectPointerPressed" >
+				<Ellipse Canvas.Left="50" Canvas.Top="-50" Style="{StaticResource PenTouchEllipseStyle}" PointerPressed="OnColorSelectPointerPressed" >
 					<Ellipse.Fill>
 						<LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
 							<GradientStop Color="Red"/>
@@ -40,6 +42,7 @@
 						</LinearGradientBrush>
 					</Ellipse.Fill>
 				</Ellipse>
+				<Ellipse Canvas.Left="50" Canvas.Top="10" Style="{StaticResource PenTouchEllipseStyle}" PointerPressed="OnDrawShapePointerPressed" Fill="White" />
 			</Canvas>
 			<Canvas x:Name="colorSelect" Canvas.Left="70" Canvas.Top="-20">
 				<Ellipse Fill="Red" PointerReleased="OnColorSelectPointerReleased" Style="{StaticResource PenTouchEllipseStyle}" />
@@ -49,6 +52,12 @@
 				<Ellipse Fill="White" PointerReleased="OnColorSelectPointerReleased" Style="{StaticResource PenTouchEllipseStyle}" />
 				<Ellipse Fill="Black" PointerReleased="OnColorSelectPointerReleased" Stroke="White" Style="{StaticResource PenTouchEllipseStyle}" />
 			</Canvas>
+			<Canvas x:Name="drawShape" Canvas.Left="70" Canvas.Top="30" PointerMoved="OnDrawShapePointerMoved" PointerReleased="OnDrawShapePointerReleased" />
+		</Canvas>
+		<Canvas x:Name="twoPointWait">
+			<Canvas x:Name="twoPointButtons">
+				<Ellipse x:Name="strokeSelect" Canvas.Left="-20" Canvas.Top="-20" Style="{StaticResource PenTouchEllipseStyle}" Fill="White" PointerPressed="OnThicknessSelectPointerPressed" PointerMoved="OnThicknessSelectPointerMoved" PointerReleased="OnThicknessSelectPointerReleased" HorizontalAlignment="Center" VerticalAlignment="Center" />
+			</Canvas>
 		</Canvas>
 	</Canvas>
-</Grid>    
+</Grid>
