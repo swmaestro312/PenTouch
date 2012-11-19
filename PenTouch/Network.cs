@@ -101,11 +101,11 @@ namespace PenTouch
                                     break;
                                 }
                                 else
-                                    Debug.WriteLine("Network Error!!");
+                                    Debug.WriteLine("Expected P or E, {0} ,Network Error!!",data);
                             }
                         }
                         else
-                            Debug.WriteLine("Network Error!!");
+                            Debug.WriteLine("Expected S, {0} , Network Error!!",data);
                         
                     }
                 }
