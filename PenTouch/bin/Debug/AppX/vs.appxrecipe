@@ -16,17 +16,17 @@
     <AppXManifest Include="C:\Programming\PenTouch\PenTouch\bin\Debug\AppxManifest.xml">
       <PackagePath>AppxManifest.xml</PackagePath>
       <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
-      <Modified>2012-11-17T01:14:49.359</Modified>
+      <Modified>2012-11-19T06:58:05.666</Modified>
     </AppXManifest>
   </ItemGroup>
   <ItemGroup>
     <AppxPackagedFile Include="C:\Programming\PenTouch\PenTouch\bin\Debug\PenTouch.exe">
       <PackagePath>PenTouch.exe</PackagePath>
-      <Modified>2012-11-17T01:14:48.929</Modified>
+      <Modified>2012-11-19T07:03:15.745</Modified>
     </AppxPackagedFile>
     <AppxPackagedFile Include="C:\Programming\PenTouch\PenTouch\bin\Debug\PenTouch.pdb">
       <PackagePath>PenTouch.pdb</PackagePath>
-      <Modified>2012-11-17T01:14:48.905</Modified>
+      <Modified>2012-11-19T07:03:15.724</Modified>
     </AppxPackagedFile>
     <AppxPackagedFile Include="C:\Programming\PenTouch\PenTouch\Standard-winrt\SharpDX.Direct2D1.dll">
       <PackagePath>SharpDX.Direct2D1.dll</PackagePath>
@@ -94,7 +94,7 @@
     </AppxPackagedFile>
     <AppxPackagedFile Include="C:\Programming\PenTouch\PenTouch\bin\Debug\CanvasEx.xaml">
       <PackagePath>CanvasEx.xaml</PackagePath>
-      <Modified>2012-11-12T06:21:02.442</Modified>
+      <Modified>2012-11-17T01:59:55.383</Modified>
     </AppxPackagedFile>
     <AppxPackagedFile Include="C:\Programming\PenTouch\PenTouch\bin\Debug\Common\StandardStyles.xaml">
       <PackagePath>Common\StandardStyles.xaml</PackagePath>

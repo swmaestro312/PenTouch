@@ -94,6 +94,12 @@ namespace PenTouch
 			palmBlock.FillRule = FillRule.Nonzero;
 			palmBlock.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(0x22, 0xff, 0, 0));
 
+            //Network added start
+            Network.connect();
+            //Network added end
+
+			Network.OnNetworkRecieved += Render;
+
 			//Clip = clipRect;
 		}
 
@@ -499,6 +505,8 @@ namespace PenTouch
 		private void RenderEnd()
 		{
 			Render(liveRender.Children.ToList());
+			Network.sendData(liveRender.Children.ToList());
+
 
 			liveRender.Children.Clear();
 			canvas.Children.Remove(liveRender);
@@ -780,6 +788,7 @@ namespace PenTouch
 				}
 
 			Render(list);
+			Network.sendData(list);
 
 			drawShape.Children.Clear();
 			drawShape.ReleasePointerCaptures();

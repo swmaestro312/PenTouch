@@ -18,7 +18,7 @@
 		</Style>	
 	</Grid.Resources>
 	
-	<local:TileBackground HorizontalAlignment="Stretch" VerticalAlignment="Stretch" ImageSource="Assets/bgline.JPG" />
+	<local:TileBackground x:Name="tileBackground" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
 
 	<Canvas x:Name="rootCanvas">
 		<Canvas x:Name="canvas">
@@ -31,7 +31,7 @@
 		</Canvas>
 		<Canvas x:Name="onePointWait">
 			<Canvas x:Name="onePointButtons">
-				<Ellipse x:ConnectionId='9' Canvas.Left="70" Canvas.Top="-20" Style="{StaticResource PenTouchEllipseStyle}"                                              >
+				<Ellipse x:ConnectionId='10' Canvas.Left="50" Canvas.Top="-50" Style="{StaticResource PenTouchEllipseStyle}"                                              >
 					<Ellipse.Fill>
 						<LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
 							<GradientStop Color="Red"/>
@@ -42,15 +42,17 @@
 						</LinearGradientBrush>
 					</Ellipse.Fill>
 				</Ellipse>
+				<Ellipse x:ConnectionId='11' Canvas.Left="50" Canvas.Top="10" Style="{StaticResource PenTouchEllipseStyle}"                                            Fill="White" />
 			</Canvas>
 			<Canvas x:Name="colorSelect" Canvas.Left="70" Canvas.Top="-20">
-				<Ellipse x:ConnectionId='3' Fill="Red"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='4' Fill="Blue"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='5' Fill="Yellow"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='6' Fill="Lime"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='7' Fill="White"                                                Style="{StaticResource PenTouchEllipseStyle}" />
-				<Ellipse x:ConnectionId='8' Fill="Black"                                                Stroke="White" Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='4' Fill="Red"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='5' Fill="Blue"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='6' Fill="Yellow"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='7' Fill="Lime"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='8' Fill="White"                                                Style="{StaticResource PenTouchEllipseStyle}" />
+				<Ellipse x:ConnectionId='9' Fill="Black"                                                Stroke="White" Style="{StaticResource PenTouchEllipseStyle}" />
 			</Canvas>
+			<Canvas x:ConnectionId='3' x:Name="drawShape" Canvas.Left="70" Canvas.Top="30"                                                                                     />
 		</Canvas>
 		<Canvas x:Name="twoPointWait">
 			<Canvas x:Name="twoPointButtons">
