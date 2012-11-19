@@ -321,23 +321,13 @@ namespace PenTouch
 				liveRender == null)
 				return false;
 
-			int n = 1;
-			float pressure = pt.Properties.Pressure - pressurePrev;
-			Point pos = new Point(pt.Position.X - pointPrev.X, pt.Position.Y - pointPrev.Y);
-				
-			while (Math.Abs(pressure * Thickness / n) >= 0.5)
-				++n;
-
-			for (int i = 1; i <= n; ++i)
+			if (Distance(pointPrev, pt.Position) >= 2)
 			{
-				Render(
-					new Point(pointPrev.X + pos.X * (i - 1) / n, pointPrev.Y + pos.Y * (i - 1) / n),
-					new Point(pointPrev.X + pos.X * i / n, pointPrev.Y + pos.Y * i / n), 
-					(pressurePrev + pressure * i / n) * Thickness, Color);
+				liveRender.Children.Add(MakeLine(pointPrev, pt.Position, pt.Properties.Pressure * Thickness, Color));
+
+				pointPrev = pt.Position;
+				pressurePrev = pt.Properties.Pressure;
 			}
-				
-			pointPrev = pt.Position;
-			pressurePrev = pt.Properties.Pressure;
 		
 			return true;
 		}
@@ -363,7 +353,7 @@ namespace PenTouch
 			canvas.Children.Add(liveRender);
 		}
 
-		private void Render(Point p1, Point p2, double thick, Brush color)
+		private Line MakeLine(Point p1, Point p2, double thick, Brush color)
 		{
 			Line l = new Line()
 			{
@@ -378,10 +368,49 @@ namespace PenTouch
 				StrokeLineJoin = PenLineJoin.Round,
 			};
 
-			liveRender.Children.Add(l);
+			return l;
 		}
 
 		private void Render(List<UIElement> points)
+		{
+			List<UIElement> directXPoints = new List<UIElement>();
+
+			Line prev = null;
+
+			foreach (var pt in points)
+			{
+				if (pt is Line == false)
+					continue;
+
+				Line now = pt as Line;
+
+				if (prev == null)
+					prev = now;
+
+				int n = 1;
+				double pressure = now.StrokeThickness - prev.StrokeThickness;
+				Point pos = new Point(now.X2 - now.X1, now.Y2 - now.Y1);
+
+				while (Math.Abs(pressure / n) >= 0.5)
+					++n;
+
+				for (int i = 1; i <= n; ++i)
+				{
+					Line l = MakeLine(
+						new Point(now.X1 + pos.X * (i - 1) / n, now.Y1 + pos.Y * (i - 1) / n),
+						new Point(now.X1 + pos.X * i / n, now.Y1 + pos.Y * i / n),
+						prev.StrokeThickness + pressure * i / n, Color);
+					
+					directXPoints.Add(l);
+				}
+
+				prev = now;
+			}
+
+			DirectXRender(directXPoints);
+		}
+
+		private void DirectXRender(List<UIElement> points)
 		{
 			if (points.Count <= 0)
 				return;
@@ -496,7 +525,6 @@ namespace PenTouch
 		{
 			Render(liveRender.Children.ToList());
 			Network.sendData(liveRender.Children.ToList());
-
 
 			liveRender.Children.Clear();
 			canvas.Children.Remove(liveRender);
