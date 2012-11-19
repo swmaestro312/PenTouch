@@ -124,17 +124,11 @@ namespace PenTouch
 				val += Math.PI / 5;
 			}
 
-#if DEBUG
-			var debugLevel = SharpDX.Direct2D1.DebugLevel.Information;
-#else
             var debugLevel = SharpDX.Direct2D1.DebugLevel.None;
-#endif
-			d2dFactory = new SharpDX.Direct2D1.Factory1(SharpDX.Direct2D1.FactoryType.SingleThreaded, debugLevel);
+            d2dFactory = new SharpDX.Direct2D1.Factory1(SharpDX.Direct2D1.FactoryType.SingleThreaded, debugLevel);
 
-			var creationFlags = SharpDX.Direct3D11.DeviceCreationFlags.BgraSupport;
-#if DEBUG
-			creationFlags |= SharpDX.Direct3D11.DeviceCreationFlags.Debug;
-#endif
+            var creationFlags = SharpDX.Direct3D11.DeviceCreationFlags.BgraSupport;
+
 			using (var defaultDevice = new SharpDX.Direct3D11.Device(SharpDX.Direct3D.DriverType.Hardware, creationFlags))
 				d3dDevice = defaultDevice.QueryInterface<SharpDX.Direct3D11.Device1>();
 
