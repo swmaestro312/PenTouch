@@ -53,7 +53,7 @@ namespace PenTouchServer
 							while ((count = stream.Read(bytes, 0, bytes.Length)) != 0) 
 							{
 								data += System.Text.Encoding.ASCII.GetString(bytes, 0, count);
-                                Console.WriteLine(i + " : " + bytes);
+                                Console.WriteLine(i + " : " + data);
 							}
 						}
 						catch (Exception E)
