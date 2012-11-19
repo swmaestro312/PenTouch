@@ -168,6 +168,8 @@ namespace PenTouch
             if (writer == null)
                 writer = new DataWriter(socket.OutputStream);
             //String data = "S";
+            if (collection.Count == 0)
+                return;
             Windows.UI.Color temp_color = ((collection[0] as Line).Stroke as SolidColorBrush).Color;
             byte[] temp_array = new byte[4];
             temp_array[0] = temp_color.A;

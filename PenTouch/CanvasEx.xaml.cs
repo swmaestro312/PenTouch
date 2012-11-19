@@ -399,7 +399,7 @@ namespace PenTouch
 					Line l = MakeLine(
 						new Point(now.X1 + pos.X * (i - 1) / n, now.Y1 + pos.Y * (i - 1) / n),
 						new Point(now.X1 + pos.X * i / n, now.Y1 + pos.Y * i / n),
-						prev.StrokeThickness + pressure * i / n, Color);
+						prev.StrokeThickness + pressure * i / n, now.Stroke);
 					
 					directXPoints.Add(l);
 				}
